@@ -60,6 +60,7 @@ class _MitraDashboardState extends ConsumerState<MitraDashboard> {
         title: const Text('Mitra Bisnis'),
         backgroundColor: const Color(0xFF2E7D32),
         foregroundColor: Colors.white,
+        automaticallyImplyLeading: false,
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),

@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../admin/admin_dashboard.dart';
-import '../mitra/mitra_dashboard.dart';
-import '../logistik/logistik_dashboard.dart';
 import '../../widgets/lottie_animations.dart';
-import '../../widgets/professional_animations.dart';
+import '../../utils/test_users_helper_new.dart';
 import 'register_screen.dart';
+import 'forgot_password_screen.dart';
+import '../mitra/mitra_dashboard.dart';
+import 'database_debug_widget.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -30,134 +30,367 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
+  Future<void> _login() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final response = await Supabase.instance.client.auth.signInWithPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+
+      if (response.user != null) {
+        if (!mounted) return;
+
+        // Show success animation
+        await showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const LottieSuccessDialog(
+            title: 'Login Berhasil!',
+            message: 'Selamat datang kembali',
+          ),
+        );
+
+        if (!mounted) return;
+
+        // Get user role with multiple fallback strategies
+        String? roleName;
+        Map<String, dynamic>? userResponse;
+
+        try {
+          // Get user profile with role enum
+          userResponse = await Supabase.instance.client
+              .from('profiles')
+              .select('*')
+              .eq('id', response.user!.id)
+              .single();
+
+          print('🔍 User Response: $userResponse');
+
+          // Get role from profile (enum field)
+          roleName = userResponse['role'];
+          print('🎭 Role Name from database: "$roleName"');
+        } catch (e) {
+          print('⚠️ Failed to get user profile: $e');
+
+          // Fallback: Use email to determine role
+          final email = response.user!.email;
+          if (email?.contains('admin') == true) {
+            roleName = 'admin';
+          } else if (email?.contains('mitra') == true) {
+            roleName = 'customer'; // Mitra is a customer
+          } else if (email?.contains('logistik') == true ||
+              email?.contains('driver') == true) {
+            roleName = 'driver';
+          }
+          print('🎭 Role from email fallback: $roleName');
+        }
+
+        if (!mounted) return;
+
+        print('🎭 Final Role Name: "$roleName"');
+        print('🔍 Role Name toLowerCase: "${roleName?.toLowerCase()}"');
+        print(
+          '🔍 Contains admin: ${roleName?.toLowerCase().contains('admin')}',
+        );
+        print(
+          '🔍 Contains mitra: ${roleName?.toLowerCase().contains('mitra')}',
+        );
+        print(
+          '🔍 Contains logistik: ${roleName?.toLowerCase().contains('logistik')}',
+        );
+
+        // Navigate based on role enum
+        if (roleName == 'admin') {
+          print('📍 Navigating to Admin Dashboard');
+          Navigator.pushReplacementNamed(context, '/admin_main');
+        } else if (roleName == 'customer' &&
+            response.user!.email?.contains('mitra') == true) {
+          print('📍 Navigating to Mitra Dashboard');
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const MitraDashboard()),
+          );
+        } else if (roleName == 'driver') {
+          print('📍 Navigating to Driver Dashboard');
+          Navigator.pushReplacementNamed(context, '/driver_main');
+        } else {
+          if (mounted) {
+            showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('Role Tidak Valid'),
+                content: Text(
+                  'Role pengguna tidak dikenali: $roleName\n\nEmail: ${response.user!.email}\n\nData user: $userResponse\n\nSilakan hubungi administrator.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('OK'),
+                  ),
+                ],
+              ),
+            );
+          }
+        }
+      }
+    } catch (error) {
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Login Gagal'),
+            content: Text(error.toString()),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF5F5F5),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
-            padding: EdgeInsets.all(24.w),
+            padding: EdgeInsets.symmetric(horizontal: 24.w),
             child: Form(
               key: _formKey,
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   SizedBox(height: 60.h),
 
-                  // Logo dan Title
-                  Center(
-                    child: Column(
-                      children: [
-                        BounceWidget(
-                          child: Container(
-                            width: 80.w,
-                            height: 80.h,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF2E7D32),
-                              borderRadius: BorderRadius.circular(20.r),
-                            ),
-                            child: Icon(
-                              Icons.eco,
-                              size: 40.sp,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                        SizedBox(height: 16.h),
-                        AnimatedTextWidget(
-                          text: 'Cangkang Sawit App',
-                          style: TextStyle(
-                            fontSize: 24.sp,
-                            fontWeight: FontWeight.bold,
-                            color: const Color(0xFF2E7D32),
-                          ),
-                          animationDuration: const Duration(milliseconds: 1200),
-                        ),
-                        SizedBox(height: 8.h),
-                        SlideInWidget(
-                          delay: const Duration(milliseconds: 500),
-                          child: Text(
-                            'PT. Fujiyama Biomass Energy',
-                            style: TextStyle(
-                              fontSize: 14.sp,
-                              color: Colors.grey[600],
-                            ),
-                          ),
+                  // Logo
+                  Container(
+                    width: 120.w,
+                    height: 80.h,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12.r),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
                         ),
                       ],
                     ),
-                  ),
-
-                  SizedBox(height: 60.h),
-
-                  // Welcome Text
-                  Text(
-                    'Selamat Datang',
-                    style: TextStyle(
-                      fontSize: 28.sp,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12.r),
+                      child: Image.asset(
+                        'assets/images/logo.png',
+                        width: 120.w,
+                        height: 80.h,
+                        fit: BoxFit.contain,
+                      ),
                     ),
-                  ),
-                  SizedBox(height: 8.h),
-                  Text(
-                    'Masuk ke akun Anda untuk melanjutkan',
-                    style: TextStyle(fontSize: 16.sp, color: Colors.grey[600]),
                   ),
 
                   SizedBox(height: 40.h),
 
-                  // Email Field
-                  TextFormField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
-                      prefixIcon: Icon(Icons.email_outlined),
+                  // Title
+                  Text(
+                    'Sign in to your account',
+                    style: TextStyle(
+                      fontSize: 32.sp,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF2E2E2E),
                     ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Email tidak boleh kosong';
-                      }
-                      if (!value.contains('@')) {
-                        return 'Email tidak valid';
-                      }
-                      return null;
-                    },
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 12.h),
+                  Text(
+                    'Welcome back! Please enter your details.',
+                    style: TextStyle(
+                      fontSize: 16.sp,
+                      color: const Color(0xFF6B7280),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+
+                  SizedBox(height: 32.h),
+
+                  // Email Field
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Email',
+                        style: TextStyle(
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w500,
+                          color: const Color(0xFF374151),
+                        ),
+                      ),
+                      SizedBox(height: 8.h),
+                      TextFormField(
+                        controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: InputDecoration(
+                          hintText: 'Enter your email address',
+                          hintStyle: TextStyle(
+                            color: const Color(0xFF9CA3AF),
+                            fontSize: 16.sp,
+                          ),
+                          filled: true,
+                          fillColor: Colors.white,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8.r),
+                            borderSide: const BorderSide(
+                              color: Color(0xFFD1D5DB),
+                              width: 1,
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8.r),
+                            borderSide: const BorderSide(
+                              color: Color(0xFFD1D5DB),
+                              width: 1,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8.r),
+                            borderSide: const BorderSide(
+                              color: Color(0xFF1B5E20),
+                              width: 2,
+                            ),
+                          ),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 16.w,
+                            vertical: 16.h,
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Email tidak boleh kosong';
+                          }
+                          if (!value.contains('@')) {
+                            return 'Email tidak valid';
+                          }
+                          return null;
+                        },
+                      ),
+                    ],
+                  ),
+
+                  SizedBox(height: 20.h),
+
+                  // Password Field
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Password',
+                        style: TextStyle(
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w500,
+                          color: const Color(0xFF374151),
+                        ),
+                      ),
+                      SizedBox(height: 8.h),
+                      TextFormField(
+                        controller: _passwordController,
+                        obscureText: !_isPasswordVisible,
+                        decoration: InputDecoration(
+                          hintText: 'Enter your password',
+                          hintStyle: TextStyle(
+                            color: const Color(0xFF9CA3AF),
+                            fontSize: 16.sp,
+                          ),
+                          filled: true,
+                          fillColor: Colors.white,
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _isPasswordVisible
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
+                              color: const Color(0xFF6B7280),
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _isPasswordVisible = !_isPasswordVisible;
+                              });
+                            },
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8.r),
+                            borderSide: const BorderSide(
+                              color: Color(0xFFD1D5DB),
+                              width: 1,
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8.r),
+                            borderSide: const BorderSide(
+                              color: Color(0xFFD1D5DB),
+                              width: 1,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8.r),
+                            borderSide: const BorderSide(
+                              color: Color(0xFF1B5E20),
+                              width: 2,
+                            ),
+                          ),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 16.w,
+                            vertical: 16.h,
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Password tidak boleh kosong';
+                          }
+                          if (value.length < 6) {
+                            return 'Password minimal 6 karakter';
+                          }
+                          return null;
+                        },
+                      ),
+                    ],
                   ),
 
                   SizedBox(height: 16.h),
 
-                  // Password Field
-                  TextFormField(
-                    controller: _passwordController,
-                    obscureText: !_isPasswordVisible,
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      prefixIcon: const Icon(Icons.lock_outlined),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _isPasswordVisible
-                              ? Icons.visibility
-                              : Icons.visibility_off,
+                  // Forgot Password
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ForgotPasswordScreen(),
+                          ),
+                        );
+                      },
+                      child: Text(
+                        'Forgot Password?',
+                        style: TextStyle(
+                          fontSize: 14.sp,
+                          color: const Color(0xFF1B5E20),
+                          fontWeight: FontWeight.w500,
                         ),
-                        onPressed: () {
-                          setState(() {
-                            _isPasswordVisible = !_isPasswordVisible;
-                          });
-                        },
                       ),
                     ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Password tidak boleh kosong';
-                      }
-                      if (value.length < 6) {
-                        return 'Password minimal 6 karakter';
-                      }
-                      return null;
-                    },
                   ),
 
                   SizedBox(height: 32.h),
@@ -174,9 +407,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               }
                             },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF2E7D32),
+                        backgroundColor: const Color(0xFF1B5E20),
                         foregroundColor: Colors.white,
                         padding: EdgeInsets.symmetric(vertical: 16.h),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8.r),
+                        ),
+                        elevation: 0,
                       ),
                       child: _isLoading
                           ? SizedBox(
@@ -190,7 +427,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               ),
                             )
                           : Text(
-                              'Masuk',
+                              'Log In',
                               style: TextStyle(
                                 fontSize: 16.sp,
                                 fontWeight: FontWeight.w600,
@@ -199,81 +436,174 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ),
 
-                  SizedBox(height: 24.h),
+                  SizedBox(height: 32.h),
 
-                  // Register Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50.h,
-                    child: OutlinedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const RegisterScreen(),
-                          ),
-                        );
-                      },
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(
-                          color: const Color(0xFF2E7D32),
-                          width: 2,
-                        ),
-                        foregroundColor: const Color(0xFF2E7D32),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12.r),
-                        ),
-                      ),
-                      child: Text(
-                        'Daftar Akun Baru',
+                  // Register Link
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        "Don't have an account? ",
                         style: TextStyle(
-                          fontSize: 16.sp,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 14.sp,
+                          color: const Color(0xFF6B7280),
                         ),
                       ),
-                    ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const RegisterScreen(),
+                            ),
+                          );
+                        },
+                        style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                        child: Text(
+                          'Sign up',
+                          style: TextStyle(
+                            fontSize: 14.sp,
+                            color: const Color(0xFF1B5E20),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
 
-                  SizedBox(height: 16.h),
+                  SizedBox(height: 20.h),
 
-                  // Register Link (Alternative)
-                  Center(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                  // Debug Section (for development only)
+                  Container(
+                    padding: EdgeInsets.all(16.w),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8.r),
+                      border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                    ),
+                    child: Column(
                       children: [
                         Text(
-                          'Sudah punya akun? ',
+                          '🔧 Debug Tools',
                           style: TextStyle(
                             fontSize: 14.sp,
-                            color: Colors.grey[600],
+                            fontWeight: FontWeight.bold,
+                            color: Colors.orange.shade700,
                           ),
                         ),
+                        SizedBox(height: 8.h),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: () async {
+                                  await TestUsersHelper.setupRoles();
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blue,
+                                  foregroundColor: Colors.white,
+                                  padding: EdgeInsets.symmetric(vertical: 8.h),
+                                ),
+                                child: Text(
+                                  'Setup Roles',
+                                  style: TextStyle(fontSize: 12.sp),
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: 8.w),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: () async {
+                                  // First create test users
+                                  await TestUsersHelper.createTestUsers();
+
+                                  // Then verify mitra user role
+                                  try {
+                                    final profileResponse = await Supabase
+                                        .instance
+                                        .client
+                                        .from('profiles')
+                                        .select('*')
+                                        .eq('email', 'mitra@fujiyama.com');
+
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Mitra user: $profileResponse',
+                                          ),
+                                          duration: Duration(seconds: 5),
+                                        ),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Error checking mitra: $e',
+                                          ),
+                                          backgroundColor: Colors.red,
+                                          duration: Duration(seconds: 5),
+                                        ),
+                                      );
+                                    }
+                                  }
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.orange,
+                                  foregroundColor: Colors.white,
+                                  padding: EdgeInsets.symmetric(vertical: 8.h),
+                                ),
+                                child: Text(
+                                  'Create Test Users',
+                                  style: TextStyle(fontSize: 12.sp),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 8.h),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const DatabaseDebugWidget(),
+                                ),
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              foregroundColor: Colors.white,
+                              padding: EdgeInsets.symmetric(vertical: 8.h),
+                            ),
+                            child: Text(
+                              'Debug Database',
+                              style: TextStyle(fontSize: 12.sp),
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: 8.h),
                         Text(
-                          'Gunakan tombol Masuk di atas',
+                          'Test: admin@fujiyama.com / password123',
                           style: TextStyle(
-                            fontSize: 14.sp,
-                            color: const Color(0xFF2E7D32),
-                            fontWeight: FontWeight.w500,
+                            fontSize: 11.sp,
+                            color: Colors.orange.shade600,
                           ),
                         ),
                       ],
                     ),
                   ),
 
-                  SizedBox(height: 20.h),
-
-                  // Footer
-                  Center(
-                    child: Text(
-                      'Version 1.0.0',
-                      style: TextStyle(
-                        fontSize: 12.sp,
-                        color: Colors.grey[500],
-                      ),
-                    ),
-                  ),
-
-                  SizedBox(height: 20.h), // Extra space at bottom
+                  SizedBox(height: 40.h),
                 ],
               ),
             ),
@@ -281,118 +611,5 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ),
       ),
     );
-  }
-
-  Future<void> _login() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      // Login dengan Supabase
-      final response = await Supabase.instance.client.auth.signInWithPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-      );
-
-      if (response.user != null) {
-        // Ambil profile user untuk menentukan role
-        final profileResponse = await Supabase.instance.client
-            .from('profiles')
-            .select('*, roles(*)')
-            .eq('id', response.user!.id)
-            .maybeSingle();
-
-        if (profileResponse == null) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'Profile user tidak ditemukan. Silahkan buat test users terlebih dahulu.',
-                ),
-                backgroundColor: Colors.orange,
-                duration: Duration(seconds: 4),
-              ),
-            );
-          }
-          return;
-        }
-
-        final roleName = profileResponse['roles']?['name'] ?? '';
-
-        if (mounted) {
-          // Show professional success animation first
-          await LottieSuccessDialog.show(
-            context,
-            title: 'Login Berhasil!',
-            message:
-                'Selamat datang, ${profileResponse['full_name']}!\nRole: $roleName',
-          );
-
-          // Navigate berdasarkan role
-          switch (roleName.toLowerCase()) {
-            case 'admin':
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const AdminDashboard()),
-              );
-              break;
-            case 'mitra bisnis':
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const MitraDashboard()),
-              );
-              break;
-            case 'logistik':
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const LogistikDashboard(),
-                ),
-              );
-              break;
-            default:
-              LottieSnackbar.showError(
-                context,
-                message:
-                    'Role tidak dikenali: "$roleName". Silahkan hubungi administrator.',
-              );
-          }
-        }
-      }
-    } on AuthException catch (e) {
-      if (mounted) {
-        String errorMessage = 'Login gagal';
-
-        if (e.message.contains('Invalid login credentials')) {
-          errorMessage =
-              'Email atau password salah. Pastikan menggunakan credentials yang benar atau buat test users terlebih dahulu.';
-        } else if (e.message.contains('Email not confirmed')) {
-          errorMessage = 'Email belum dikonfirmasi. Silahkan cek email Anda.';
-        } else {
-          errorMessage = 'Login gagal: ${e.message}';
-        }
-
-        LottieSnackbar.showError(
-          context,
-          message: errorMessage,
-          duration: const Duration(seconds: 5),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        LottieSnackbar.showError(
-          context,
-          message: 'Error tidak terduga: ${e.toString()}',
-          duration: const Duration(seconds: 4),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
   }
 }

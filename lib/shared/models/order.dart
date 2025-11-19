@@ -1,16 +1,27 @@
 import 'user_profile.dart';
 import 'product.dart';
 
-/// Model untuk Order (Pesanan)
+/// Model untuk Order (Pesanan) - orders table
 class Order {
-  final String id;
-  final String customerId;
-  final String orderNumber;
-  final DateTime createdAt;
-  final String status;
-  final double? totalAmount;
+  final String id; // UUID primary key
+  final String orderNumber; // UNIQUE
+  final String customerId; // Foreign key to profiles
+  final DateTime orderDate;
+  final String status; // pending, confirmed, shipped, completed, cancelled
+  final double totalQuantity;
+  final double confirmedQuantity;
+  final double totalAmount;
+  final String? adminNotes;
   final String? customerNotes;
+  final DateTime? confirmedAt;
+  final DateTime? completedAt;
+  final DateTime createdAt;
   final DateTime? updatedAt;
+  final String? pickupAddress;
+  final String? deliveryAddress;
+  final DateTime? pickupDate;
+  final DateTime? deliveryDate;
+  final String? notes;
 
   // Relasi
   final UserProfile? customer;
@@ -18,13 +29,24 @@ class Order {
 
   const Order({
     required this.id,
-    required this.customerId,
     required this.orderNumber,
-    required this.createdAt,
+    required this.customerId,
+    required this.orderDate,
     required this.status,
-    this.totalAmount,
+    required this.totalQuantity,
+    this.confirmedQuantity = 0,
+    required this.totalAmount,
+    this.adminNotes,
     this.customerNotes,
+    this.confirmedAt,
+    this.completedAt,
+    required this.createdAt,
     this.updatedAt,
+    this.pickupAddress,
+    this.deliveryAddress,
+    this.pickupDate,
+    this.deliveryDate,
+    this.notes,
     this.customer,
     this.orderDetails,
   });
@@ -32,17 +54,34 @@ class Order {
   factory Order.fromJson(Map<String, dynamic> json) {
     return Order(
       id: json['id'] as String,
-      customerId: json['customer_id'] as String,
       orderNumber: json['order_number'] as String,
-      createdAt: DateTime.parse(json['created_at'] as String),
+      customerId: json['customer_id'] as String,
+      orderDate: DateTime.parse(json['order_date'] as String),
       status: json['status'] as String,
-      totalAmount: json['total_amount'] != null
-          ? (json['total_amount'] as num).toDouble()
-          : null,
+      totalQuantity: (json['total_quantity'] as num).toDouble(),
+      confirmedQuantity: (json['confirmed_quantity'] as num?)?.toDouble() ?? 0,
+      totalAmount: (json['total_amount'] as num).toDouble(),
+      adminNotes: json['admin_notes'] as String?,
       customerNotes: json['customer_notes'] as String?,
+      confirmedAt: json['confirmed_at'] != null
+          ? DateTime.parse(json['confirmed_at'] as String)
+          : null,
+      completedAt: json['completed_at'] != null
+          ? DateTime.parse(json['completed_at'] as String)
+          : null,
+      createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: json['updated_at'] != null
           ? DateTime.parse(json['updated_at'] as String)
           : null,
+      pickupAddress: json['pickup_address'] as String?,
+      deliveryAddress: json['delivery_address'] as String?,
+      pickupDate: json['pickup_date'] != null
+          ? DateTime.parse(json['pickup_date'] as String)
+          : null,
+      deliveryDate: json['delivery_date'] != null
+          ? DateTime.parse(json['delivery_date'] as String)
+          : null,
+      notes: json['notes'] as String?,
       customer: json['profiles'] != null
           ? UserProfile.fromJson(json['profiles'] as Map<String, dynamic>)
           : null,
@@ -60,20 +99,30 @@ class Order {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'customer_id': customerId,
       'order_number': orderNumber,
-      'created_at': createdAt.toIso8601String(),
+      'customer_id': customerId,
+      'order_date': orderDate.toIso8601String(),
       'status': status,
+      'total_quantity': totalQuantity,
+      'confirmed_quantity': confirmedQuantity,
       'total_amount': totalAmount,
+      'admin_notes': adminNotes,
       'customer_notes': customerNotes,
+      'confirmed_at': confirmedAt?.toIso8601String(),
+      'completed_at': completedAt?.toIso8601String(),
+      'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
+      'pickup_address': pickupAddress,
+      'delivery_address': deliveryAddress,
+      'pickup_date': pickupDate?.toIso8601String(),
+      'delivery_date': deliveryDate?.toIso8601String(),
+      'notes': notes,
     };
   }
 
   /// Helper method untuk format total amount
   String get formattedTotalAmount {
-    if (totalAmount == null) return 'Rp 0';
-    return 'Rp ${totalAmount!.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}';
+    return 'Rp ${totalAmount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}';
   }
 
   /// Helper method untuk mendapatkan nama customer
@@ -86,12 +135,21 @@ class Order {
   bool get canBeShipped => status == 'confirmed';
 
   /// Helper method untuk cek apakah pesanan sudah selesai
-  bool get isCompleted => status == 'delivered';
+  bool get isCompleted => status == 'completed';
+
+  /// Helper method untuk cek apakah pesanan dibatalkan
+  bool get isCancelled => status == 'cancelled';
+
+  /// Helper method untuk cek apakah pesanan dalam pengiriman
+  bool get isShipped => status == 'shipped';
 
   /// Helper method untuk menghitung total quantity yang dipesan
   double get totalQuantityOrdered {
-    if (orderDetails == null) return 0;
-    return orderDetails!.fold(0, (sum, detail) => sum + detail.totalQuantity);
+    if (orderDetails == null) return totalQuantity;
+    return orderDetails!.fold(
+      0,
+      (sum, detail) => sum + detail.requestedQuantity,
+    );
   }
 
   /// Helper method untuk menghitung total quantity yang diterima
@@ -105,25 +163,47 @@ class Order {
 
   Order copyWith({
     String? id,
-    String? customerId,
     String? orderNumber,
-    DateTime? createdAt,
+    String? customerId,
+    DateTime? orderDate,
     String? status,
+    double? totalQuantity,
+    double? confirmedQuantity,
     double? totalAmount,
+    String? adminNotes,
     String? customerNotes,
+    DateTime? confirmedAt,
+    DateTime? completedAt,
+    DateTime? createdAt,
     DateTime? updatedAt,
+    String? pickupAddress,
+    String? deliveryAddress,
+    DateTime? pickupDate,
+    DateTime? deliveryDate,
+    String? notes,
     UserProfile? customer,
     List<OrderDetail>? orderDetails,
   }) {
     return Order(
       id: id ?? this.id,
-      customerId: customerId ?? this.customerId,
       orderNumber: orderNumber ?? this.orderNumber,
-      createdAt: createdAt ?? this.createdAt,
+      customerId: customerId ?? this.customerId,
+      orderDate: orderDate ?? this.orderDate,
       status: status ?? this.status,
+      totalQuantity: totalQuantity ?? this.totalQuantity,
+      confirmedQuantity: confirmedQuantity ?? this.confirmedQuantity,
       totalAmount: totalAmount ?? this.totalAmount,
+      adminNotes: adminNotes ?? this.adminNotes,
       customerNotes: customerNotes ?? this.customerNotes,
+      confirmedAt: confirmedAt ?? this.confirmedAt,
+      completedAt: completedAt ?? this.completedAt,
+      createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      pickupAddress: pickupAddress ?? this.pickupAddress,
+      deliveryAddress: deliveryAddress ?? this.deliveryAddress,
+      pickupDate: pickupDate ?? this.pickupDate,
+      deliveryDate: deliveryDate ?? this.deliveryDate,
+      notes: notes ?? this.notes,
       customer: customer ?? this.customer,
       orderDetails: orderDetails ?? this.orderDetails,
     );
@@ -144,16 +224,17 @@ class Order {
   int get hashCode => id.hashCode;
 }
 
-/// Model untuk Order Detail (Detail Pesanan)
+/// Model untuk Order Detail (Detail Pesanan) - order_details table
 class OrderDetail {
-  final String id;
-  final String orderId;
-  final String productId;
-  final double totalQuantity;
+  final String id; // UUID primary key
+  final String orderId; // Foreign key to orders
+  final String productId; // Foreign key to products
+  final double requestedQuantity;
   final double confirmedQuantity;
   final double unitPrice;
-  final double? subtotal;
-  final DateTime? createdAt;
+  final double subtotal;
+  final String? notes;
+  final DateTime createdAt;
   final DateTime? updatedAt;
 
   // Relasi
@@ -163,11 +244,12 @@ class OrderDetail {
     required this.id,
     required this.orderId,
     required this.productId,
-    required this.totalQuantity,
-    required this.confirmedQuantity,
+    required this.requestedQuantity,
+    this.confirmedQuantity = 0,
     required this.unitPrice,
-    this.subtotal,
-    this.createdAt,
+    required this.subtotal,
+    this.notes,
+    required this.createdAt,
     this.updatedAt,
     this.product,
   });
@@ -177,15 +259,12 @@ class OrderDetail {
       id: json['id'] as String,
       orderId: json['order_id'] as String,
       productId: json['product_id'] as String,
-      totalQuantity: (json['total_quantity'] as num).toDouble(),
-      confirmedQuantity: (json['confirmed_quantity'] as num).toDouble(),
+      requestedQuantity: (json['requested_quantity'] as num).toDouble(),
+      confirmedQuantity: (json['confirmed_quantity'] as num?)?.toDouble() ?? 0,
       unitPrice: (json['unit_price'] as num).toDouble(),
-      subtotal: json['subtotal'] != null
-          ? (json['subtotal'] as num).toDouble()
-          : null,
-      createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'] as String)
-          : null,
+      subtotal: (json['subtotal'] as num).toDouble(),
+      notes: json['notes'] as String?,
+      createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: json['updated_at'] != null
           ? DateTime.parse(json['updated_at'] as String)
           : null,
@@ -200,11 +279,12 @@ class OrderDetail {
       'id': id,
       'order_id': orderId,
       'product_id': productId,
-      'total_quantity': totalQuantity,
+      'requested_quantity': requestedQuantity,
       'confirmed_quantity': confirmedQuantity,
       'unit_price': unitPrice,
       'subtotal': subtotal,
-      'created_at': createdAt?.toIso8601String(),
+      'notes': notes,
+      'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
     };
   }
@@ -213,7 +293,7 @@ class OrderDetail {
   String get productName => product?.name ?? 'Unknown Product';
 
   /// Helper method untuk mendapatkan satuan produk
-  String get productUnit => product?.unit ?? '';
+  String get productUnit => product?.unit ?? 'ton';
 
   /// Helper method untuk format unit price
   String get formattedUnitPrice {
@@ -222,24 +302,27 @@ class OrderDetail {
 
   /// Helper method untuk format subtotal
   String get formattedSubtotal {
-    final calculatedSubtotal = subtotal ?? (confirmedQuantity * unitPrice);
-    return 'Rp ${calculatedSubtotal.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}';
+    return 'Rp ${subtotal.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}';
   }
 
   /// Helper method untuk cek apakah ada selisih quantity (partial acceptance)
-  bool get isPartiallyAccepted => confirmedQuantity < totalQuantity;
+  bool get isPartiallyAccepted => confirmedQuantity < requestedQuantity;
 
   /// Helper method untuk mendapatkan selisih quantity
-  double get quantityDifference => totalQuantity - confirmedQuantity;
+  double get quantityDifference => requestedQuantity - confirmedQuantity;
+
+  /// Helper method untuk cek apakah sudah dikonfirmasi
+  bool get isConfirmed => confirmedQuantity > 0;
 
   OrderDetail copyWith({
     String? id,
     String? orderId,
     String? productId,
-    double? totalQuantity,
+    double? requestedQuantity,
     double? confirmedQuantity,
     double? unitPrice,
     double? subtotal,
+    String? notes,
     DateTime? createdAt,
     DateTime? updatedAt,
     Product? product,
@@ -248,10 +331,11 @@ class OrderDetail {
       id: id ?? this.id,
       orderId: orderId ?? this.orderId,
       productId: productId ?? this.productId,
-      totalQuantity: totalQuantity ?? this.totalQuantity,
+      requestedQuantity: requestedQuantity ?? this.requestedQuantity,
       confirmedQuantity: confirmedQuantity ?? this.confirmedQuantity,
       unitPrice: unitPrice ?? this.unitPrice,
       subtotal: subtotal ?? this.subtotal,
+      notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       product: product ?? this.product,
@@ -260,7 +344,7 @@ class OrderDetail {
 
   @override
   String toString() {
-    return 'OrderDetail(id: $id, productName: $productName, totalQuantity: $totalQuantity, confirmedQuantity: $confirmedQuantity)';
+    return 'OrderDetail(id: $id, productName: $productName, requestedQuantity: $requestedQuantity, confirmedQuantity: $confirmedQuantity)';
   }
 
   @override

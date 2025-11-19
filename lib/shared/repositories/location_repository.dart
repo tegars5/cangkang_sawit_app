@@ -159,14 +159,28 @@ class LocationRepository {
     return _supabaseService.client
         .from('driver_locations')
         .stream(primaryKey: ['id'])
-        .eq('driver_id', driverId)
-        .eq('is_active', true)
-        .order('timestamp')
         .map((List<Map<String, dynamic>> data) {
-          if (data.isEmpty) {
+          // Filter untuk driver_id dan is_active = true
+          final filtered = data
+              .where(
+                (location) =>
+                    location['driver_id'] == driverId &&
+                    location['is_active'] == true,
+              )
+              .toList();
+
+          if (filtered.isEmpty) {
             throw Exception('No location data');
           }
-          return DriverLocation.fromJson(data.last);
+
+          // Sort by timestamp dan ambil yang terbaru
+          filtered.sort((a, b) {
+            final aTime = DateTime.parse(a['timestamp'] as String);
+            final bTime = DateTime.parse(b['timestamp'] as String);
+            return bTime.compareTo(aTime); // Descending
+          });
+
+          return DriverLocation.fromJson(filtered.first);
         });
   }
 

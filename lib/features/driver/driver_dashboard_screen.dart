@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'dart:async';
 import 'package:geolocator/geolocator.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/services/gps_service.dart';
 import '../../shared/repositories/location_repository.dart';
@@ -30,7 +31,6 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
 
   // Real shipment data
   List<Shipment> _activeShipments = [];
-  bool _isLoadingShipments = false;
   StreamSubscription<List<Shipment>>? _shipmentsSubscription;
 
   // Current user - replace with actual authentication
@@ -49,10 +49,6 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
   }
 
   Future<void> _loadDriverShipments() async {
-    setState(() {
-      _isLoadingShipments = true;
-    });
-
     try {
       final shipments = await ShipmentRepository.getDriverShipments(
         _currentDriverId,
@@ -62,14 +58,10 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
           _activeShipments = shipments
               .where((s) => s.status == 'assigned' || s.status == 'picked_up')
               .toList();
-          _isLoadingShipments = false;
         });
       }
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _isLoadingShipments = false;
-        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Gagal memuat data pengiriman: $e'),
@@ -517,7 +509,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
                   ),
                 ),
                 SizedBox(width: 8.w),
-                if (shipment.canStart())
+                if (shipment.canStart)
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () => _startShipment(shipment),
@@ -529,7 +521,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
                       ),
                     ),
                   )
-                else if (shipment.inProgress())
+                else if (shipment.inProgress)
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () => _completeDelivery(shipment),
@@ -624,73 +616,6 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
     );
   }
 
-  void _showShipmentDetails(Map<String, dynamic> shipment) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Shipment Details'),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Order: ${shipment['order_number']}'),
-              SizedBox(height: 8.h),
-              Text('Customer: ${shipment['customer_name']}'),
-              SizedBox(height: 8.h),
-              Text('Destination: ${shipment['destination']}'),
-              SizedBox(height: 8.h),
-              Text('Items:'),
-              ...(shipment['items'] as List)
-                  .map(
-                    (item) => Padding(
-                      padding: EdgeInsets.only(left: 16.w, top: 4.h),
-                      child: Text(
-                        '• ${item['product']}: ${item['quantity']} ${item['unit']}',
-                      ),
-                    ),
-                  )
-                  .toList(),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _markAsDelivered(Map<String, dynamic> shipment) {
-    // TODO: Implement photo capture and delivery confirmation
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Mark as Delivered'),
-        content: Text('Take a photo and confirm delivery?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // TODO: Navigate to photo capture screen
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Photo capture feature coming soon')),
-              );
-            },
-            child: Text('Take Photo'),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _startShipment(Shipment shipment) async {
     try {
       await ShipmentRepository.startShipment(shipment.id);
@@ -769,7 +694,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
+  Widget _buildDetailRow(String label, String? value) {
     return Padding(
       padding: EdgeInsets.only(bottom: 8.h),
       child: Row(
@@ -787,7 +712,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
             ),
           ),
           Expanded(
-            child: Text(value, style: TextStyle(fontSize: 14.sp)),
+            child: Text(value ?? '-', style: TextStyle(fontSize: 14.sp)),
           ),
         ],
       ),
@@ -865,16 +790,255 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
   }
 
   void _callSupport() {
-    // TODO: Implement phone call to support
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Calling support: +62-xxx-xxx-xxxx')),
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.phone, color: Colors.green),
+            SizedBox(width: 8.w),
+            Text('Hubungi Support'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Pilih metode kontak:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 16.h),
+            ListTile(
+              leading: Icon(Icons.phone, color: Colors.green),
+              title: Text('Call Center'),
+              subtitle: Text('+62-21-1234-5678'),
+              onTap: () {
+                Navigator.pop(context);
+                _makePhoneCall('+622112345678');
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.support_agent, color: Colors.blue),
+              title: Text('Emergency Hotline'),
+              subtitle: Text('+62-811-9999-8888'),
+              onTap: () {
+                Navigator.pop(context);
+                _makePhoneCall('+6281199998888');
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.email, color: Colors.orange),
+              title: Text('Email Support'),
+              subtitle: Text('support@fujiyama.com'),
+              onTap: () {
+                Navigator.pop(context);
+                _sendEmail('support@fujiyama.com');
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Batal'),
+          ),
+        ],
+      ),
     );
   }
 
+  Future<void> _makePhoneCall(String phoneNumber) async {
+    try {
+      final Uri phoneUri = Uri(scheme: 'tel', path: phoneNumber);
+      if (await canLaunchUrl(phoneUri)) {
+        await launchUrl(phoneUri);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Tidak dapat membuka aplikasi telepon'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _sendEmail(String email) async {
+    try {
+      final Uri emailUri = Uri(
+        scheme: 'mailto',
+        path: email,
+        query: 'subject=Bantuan Driver&body=Halo, saya membutuhkan bantuan...',
+      );
+      if (await canLaunchUrl(emailUri)) {
+        await launchUrl(emailUri);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Tidak dapat membuka aplikasi email'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   void _openNavigation() {
-    // TODO: Implement navigation to destination
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('Opening navigation app...')));
+    // Cek apakah ada shipment aktif
+    if (_activeShipments.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Tidak ada pengiriman aktif'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // Get active shipment dengan destination
+    Shipment? activeShipment;
+    try {
+      activeShipment = _activeShipments.firstWhere(
+        (s) => s.status == 'picked_up',
+      );
+    } catch (e) {
+      // Jika tidak ada yang picked_up, ambil yang pertama
+      activeShipment = _activeShipments.first;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.navigation, color: Colors.blue),
+            SizedBox(width: 8.w),
+            Text('Navigasi'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Tujuan:', style: TextStyle(fontWeight: FontWeight.bold)),
+            SizedBox(height: 8.h),
+            Text(activeShipment!.destinationAddress ?? 'Alamat tidak tersedia'),
+            SizedBox(height: 16.h),
+            Text(
+              'Pilih aplikasi navigasi:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 12.h),
+            ListTile(
+              leading: Icon(Icons.map, color: Colors.blue),
+              title: Text('Google Maps'),
+              onTap: () {
+                Navigator.pop(context);
+                _launchGoogleMaps(activeShipment!.destinationAddress);
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.navigation, color: Colors.green),
+              title: Text('Waze'),
+              onTap: () {
+                Navigator.pop(context);
+                _launchWaze(activeShipment!.destinationAddress);
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Batal'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _launchGoogleMaps(String? address) async {
+    if (address == null || address.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Alamat tujuan tidak tersedia'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    try {
+      final encodedAddress = Uri.encodeComponent(address);
+      final Uri mapsUri = Uri.parse(
+        'https://www.google.com/maps/search/?api=1&query=$encodedAddress',
+      );
+
+      if (await canLaunchUrl(mapsUri)) {
+        await launchUrl(mapsUri, mode: LaunchMode.externalApplication);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Tidak dapat membuka Google Maps'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _launchWaze(String? address) async {
+    if (address == null || address.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Alamat tujuan tidak tersedia'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    try {
+      final encodedAddress = Uri.encodeComponent(address);
+      final Uri wazeUri = Uri.parse('https://waze.com/ul?q=$encodedAddress');
+
+      if (await canLaunchUrl(wazeUri)) {
+        await launchUrl(wazeUri, mode: LaunchMode.externalApplication);
+      } else {
+        // Fallback ke Google Maps jika Waze tidak tersedia
+        _launchGoogleMaps(address);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 }

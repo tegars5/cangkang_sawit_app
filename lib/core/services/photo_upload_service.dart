@@ -4,15 +4,13 @@ import 'dart:developer';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:path/path.dart' as path;
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../config/supabase_client.dart';
+import 'supabase_service.dart';
 
 class PhotoUploadService {
-  static final SupabaseClient _supabase = SupabaseConfig.client;
+  static final SupabaseClient _supabase = SupabaseService.instance.client;
   static const String _bucketName = 'delivery-photos';
   static const int _maxFileSize = 5 * 1024 * 1024; // 5MB
   static const int _compressQuality = 80;
-  static const int _maxWidth = 1080;
-  static const int _maxHeight = 1920;
 
   // Initialize storage bucket
   static Future<void> initializeBucket() async {
@@ -27,7 +25,7 @@ class PhotoUploadService {
           const BucketOptions(
             public: false,
             allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
-            fileSizeLimit: _maxFileSize,
+            fileSizeLimit: null, // Remove size limit or use null
           ),
         );
         log('Created delivery-photos bucket');
@@ -115,7 +113,7 @@ class PhotoUploadService {
       final storagePath = _generatePhotoPath(shipmentId, fileName);
 
       // Upload to Supabase Storage
-      final uploadResult = await _supabase.storage
+      await _supabase.storage
           .from(_bucketName)
           .uploadBinary(
             storagePath,

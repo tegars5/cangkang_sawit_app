@@ -1,19 +1,18 @@
 import 'dart:math';
 
-/// Model untuk Driver Location (Lokasi GPS Driver)
+/// Model untuk Driver Location (Lokasi GPS Driver) - driver_locations table
 class DriverLocation {
-  final String id;
-  final String driverId;
-  final String? shipmentId;
+  final String id; // UUID primary key
+  final String driverId; // Foreign key to profiles
+  final String? shipmentId; // Foreign key to shipments
   final double latitude;
   final double longitude;
   final double? accuracy;
+  final double? altitude;
   final double? speed;
-  final double? bearing;
+  final double? heading;
   final DateTime timestamp;
   final DateTime createdAt;
-  final DateTime? updatedAt;
-  final bool isActive;
 
   const DriverLocation({
     required this.id,
@@ -22,12 +21,11 @@ class DriverLocation {
     required this.latitude,
     required this.longitude,
     this.accuracy,
+    this.altitude,
     this.speed,
-    this.bearing,
+    this.heading,
     required this.timestamp,
     required this.createdAt,
-    this.updatedAt,
-    this.isActive = true,
   });
 
   factory DriverLocation.fromJson(Map<String, dynamic> json) {
@@ -40,16 +38,15 @@ class DriverLocation {
       accuracy: json['accuracy'] != null
           ? (json['accuracy'] as num).toDouble()
           : null,
+      altitude: json['altitude'] != null
+          ? (json['altitude'] as num).toDouble()
+          : null,
       speed: json['speed'] != null ? (json['speed'] as num).toDouble() : null,
-      bearing: json['bearing'] != null
-          ? (json['bearing'] as num).toDouble()
+      heading: json['heading'] != null
+          ? (json['heading'] as num).toDouble()
           : null,
       timestamp: DateTime.parse(json['timestamp'] as String),
       createdAt: DateTime.parse(json['created_at'] as String),
-      updatedAt: json['updated_at'] != null
-          ? DateTime.parse(json['updated_at'] as String)
-          : null,
-      isActive: json['is_active'] as bool? ?? true,
     );
   }
 
@@ -61,12 +58,11 @@ class DriverLocation {
       'latitude': latitude,
       'longitude': longitude,
       'accuracy': accuracy,
+      'altitude': altitude,
       'speed': speed,
-      'bearing': bearing,
+      'heading': heading,
       'timestamp': timestamp.toIso8601String(),
       'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt?.toIso8601String(),
-      'is_active': isActive,
     };
   }
 
@@ -128,6 +124,25 @@ class DriverLocation {
     return difference.inMinutes <= 5;
   }
 
+  /// Alias untuk isFresh - cek apakah lokasi masih recent
+  bool get isRecent => isFresh;
+
+  /// Helper method untuk format heading sebagai arah mata angin
+  String get formattedHeading {
+    if (heading == null) return '-';
+
+    // Konversi heading (0-360 derajat) ke arah mata angin
+    const directions = ['U', 'TL', 'T', 'TG', 'S', 'BD', 'B', 'BL'];
+    final index = ((heading! + 22.5) / 45).floor() % 8;
+    return directions[index];
+  }
+
+  /// Helper method untuk format altitude
+  String get formattedAltitude {
+    if (altitude == null) return 'N/A';
+    return '${altitude!.toStringAsFixed(1)} m';
+  }
+
   /// Helper method untuk menghitung jarak ke koordinat lain (dalam meter)
   /// Menggunakan formula Haversine
   double distanceTo(double lat2, double lon2) {
@@ -157,12 +172,11 @@ class DriverLocation {
     double? latitude,
     double? longitude,
     double? accuracy,
+    double? altitude,
     double? speed,
-    double? bearing,
+    double? heading,
     DateTime? timestamp,
     DateTime? createdAt,
-    DateTime? updatedAt,
-    bool? isActive,
   }) {
     return DriverLocation(
       id: id ?? this.id,
@@ -171,12 +185,11 @@ class DriverLocation {
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       accuracy: accuracy ?? this.accuracy,
+      altitude: altitude ?? this.altitude,
       speed: speed ?? this.speed,
-      bearing: bearing ?? this.bearing,
+      heading: heading ?? this.heading,
       timestamp: timestamp ?? this.timestamp,
       createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
-      isActive: isActive ?? this.isActive,
     );
   }
 

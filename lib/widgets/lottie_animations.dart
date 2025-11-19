@@ -79,7 +79,7 @@ class _LottieSuccessDialogState extends State<LottieSuccessDialog>
 
   void _dismissDialog() async {
     await _fadeController.reverse();
-    if (mounted) {
+    if (mounted && Navigator.canPop(context)) {
       Navigator.of(context).pop();
       widget.onComplete?.call();
     }

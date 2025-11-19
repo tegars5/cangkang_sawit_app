@@ -5,6 +5,8 @@ import 'core/services/supabase_service.dart';
 import 'core/services/app_initialization_service.dart';
 import 'core/constants/app_constants.dart';
 import 'features/auth/login_screen.dart';
+import 'features/admin/pages/admin_main_layout.dart';
+import 'features/driver/pages/driver_main_layout.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,7 +40,9 @@ class CangkangSawitApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(
-              seedColor: const Color(0xFF2E7D32), // Green theme untuk sawit
+              seedColor: const Color(
+                0xFF1B5E20,
+              ), // Dark green theme untuk sawit
               brightness: Brightness.light,
             ),
             useMaterial3: true,
@@ -66,7 +70,16 @@ class CangkangSawitApp extends StatelessWidget {
               ),
             ),
           ),
-          home: const LoginScreen(),
+          // Use initialRoute instead of home to enable proper navigation
+          initialRoute: '/',
+          routes: {
+            '/': (context) => const LoginScreen(),
+            '/login': (context) => const LoginScreen(),
+            '/admin_main': (context) => const AdminMainLayout(),
+            '/driver_main': (context) => const DriverMainLayout(),
+          },
+          // This ensures Navigator always has at least one route
+          navigatorObservers: [],
         );
       },
     );

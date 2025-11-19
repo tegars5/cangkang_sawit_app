@@ -102,7 +102,7 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
     try {
       final result = await MitraService.createOrder(
         productId: selectedProduct!['id'],
-        quantity: int.parse(_quantityController.text),
+        quantity: int.parse(_quantityController.text).toDouble(),
         deliveryAddress: _addressController.text,
         requestedDeliveryDate: selectedDeliveryDate,
         notes: _notesController.text.isEmpty ? null : _notesController.text,

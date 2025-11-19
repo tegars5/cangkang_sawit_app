@@ -7,7 +7,6 @@ import 'package:permission_handler/permission_handler.dart';
 import '../../shared/models/shipment.dart';
 import '../../core/repositories/shipment_repository.dart';
 import '../../core/services/photo_upload_service.dart';
-import '../../shared/widgets/loading_overlay.dart';
 
 class DeliveryConfirmationScreen extends ConsumerStatefulWidget {
   final Shipment shipment;
@@ -278,309 +277,319 @@ class _DeliveryConfirmationScreenState
 
   @override
   Widget build(BuildContext context) {
-    return LoadingOverlay(
-      isLoading: _isLoading,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Konfirmasi Pengiriman'),
-          backgroundColor: Colors.green,
-          foregroundColor: Colors.white,
-        ),
-        body: SingleChildScrollView(
-          padding: EdgeInsets.all(20.w),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Shipment Info Card
-                Card(
-                  child: Padding(
-                    padding: EdgeInsets.all(16.w),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Informasi Pengiriman',
-                          style: TextStyle(
-                            fontSize: 18.sp,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green,
+    return Stack(
+      children: [
+        Scaffold(
+          appBar: AppBar(
+            title: const Text('Konfirmasi Pengiriman'),
+            backgroundColor: Colors.green,
+            foregroundColor: Colors.white,
+          ),
+          body: SingleChildScrollView(
+            padding: EdgeInsets.all(20.w),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Shipment Info Card
+                  Card(
+                    child: Padding(
+                      padding: EdgeInsets.all(16.w),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Informasi Pengiriman',
+                            style: TextStyle(
+                              fontSize: 18.sp,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green,
+                            ),
                           ),
-                        ),
-                        SizedBox(height: 12.h),
-                        _buildInfoRow(
-                          'No. Surat Jalan:',
-                          widget.shipment.deliveryNoteNumber,
-                        ),
-                        _buildInfoRow(
-                          'Alamat Tujuan:',
-                          widget.shipment.destinationAddress,
-                        ),
-                        if (widget.shipment.order?.customerName != null)
+                          SizedBox(height: 12.h),
                           _buildInfoRow(
-                            'Nama Pelanggan:',
-                            widget.shipment.order!.customerName,
+                            'No. Surat Jalan:',
+                            widget.shipment.deliveryNoteNumber,
                           ),
-                        if (widget.shipment.pickupDate != null)
                           _buildInfoRow(
-                            'Tanggal Pickup:',
-                            widget.shipment.formattedPickupDate,
+                            'Alamat Tujuan:',
+                            widget.shipment.destinationAddress,
                           ),
-                      ],
+                          if (widget.shipment.order?.customerName != null)
+                            _buildInfoRow(
+                              'Nama Pelanggan:',
+                              widget.shipment.order!.customerName,
+                            ),
+                          if (widget.shipment.pickupDate != null)
+                            _buildInfoRow(
+                              'Tanggal Pickup:',
+                              widget.shipment.formattedPickupDate,
+                            ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
 
-                SizedBox(height: 20.h),
+                  SizedBox(height: 20.h),
 
-                // Customer Name Confirmation
-                TextFormField(
-                  controller: _customerNameController,
-                  decoration: InputDecoration(
-                    labelText: 'Konfirmasi Nama Penerima',
-                    hintText: 'Masukkan nama penerima barang',
-                    border: OutlineInputBorder(
+                  // Customer Name Confirmation
+                  TextFormField(
+                    controller: _customerNameController,
+                    decoration: InputDecoration(
+                      labelText: 'Konfirmasi Nama Penerima',
+                      hintText: 'Masukkan nama penerima barang',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8.r),
+                      ),
+                      prefixIcon: const Icon(Icons.person, color: Colors.green),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Nama penerima harus diisi';
+                      }
+                      return null;
+                    },
+                  ),
+
+                  SizedBox(height: 20.h),
+
+                  // Photo Section
+                  Text(
+                    'Foto Bukti Pengiriman *',
+                    style: TextStyle(
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  SizedBox(height: 10.h),
+
+                  // Add Photo Button
+                  Container(
+                    width: double.infinity,
+                    height: 120.h,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300, width: 2),
                       borderRadius: BorderRadius.circular(8.r),
+                      color: Colors.grey.shade50,
                     ),
-                    prefixIcon: const Icon(Icons.person, color: Colors.green),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Nama penerima harus diisi';
-                    }
-                    return null;
-                  },
-                ),
-
-                SizedBox(height: 20.h),
-
-                // Photo Section
-                Text(
-                  'Foto Bukti Pengiriman *',
-                  style: TextStyle(
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                SizedBox(height: 10.h),
-
-                // Add Photo Button
-                Container(
-                  width: double.infinity,
-                  height: 120.h,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300, width: 2),
-                    borderRadius: BorderRadius.circular(8.r),
-                    color: Colors.grey.shade50,
-                  ),
-                  child: InkWell(
-                    onTap: _selectedPhotos.length < 5
-                        ? _showImagePickerOptions
-                        : null,
-                    borderRadius: BorderRadius.circular(8.r),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.add_a_photo,
-                          size: 40.sp,
-                          color: _selectedPhotos.length < 5
-                              ? Colors.green
-                              : Colors.grey,
-                        ),
-                        SizedBox(height: 8.h),
-                        Text(
-                          _selectedPhotos.length < 5
-                              ? 'Tambah Foto (${_selectedPhotos.length}/5)'
-                              : 'Maksimal 5 foto',
-                          style: TextStyle(
+                    child: InkWell(
+                      onTap: _selectedPhotos.length < 5
+                          ? _showImagePickerOptions
+                          : null,
+                      borderRadius: BorderRadius.circular(8.r),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.add_a_photo,
+                            size: 40.sp,
                             color: _selectedPhotos.length < 5
                                 ? Colors.green
                                 : Colors.grey,
-                            fontSize: 14.sp,
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                SizedBox(height: 15.h),
-
-                // Selected Photos Grid
-                if (_selectedPhotos.isNotEmpty) ...[
-                  GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      crossAxisSpacing: 10.w,
-                      mainAxisSpacing: 10.h,
-                      childAspectRatio: 1,
-                    ),
-                    itemCount: _selectedPhotos.length,
-                    itemBuilder: (context, index) {
-                      return Stack(
-                        children: [
-                          Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(8.r),
-                              border: Border.all(color: Colors.grey.shade300),
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8.r),
-                              child: Image.file(
-                                _selectedPhotos[index],
-                                fit: BoxFit.cover,
-                                width: double.infinity,
-                                height: double.infinity,
-                              ),
-                            ),
-                          ),
-                          Positioned(
-                            top: 4,
-                            right: 4,
-                            child: GestureDetector(
-                              onTap: () => _removePhoto(index),
-                              child: Container(
-                                decoration: const BoxDecoration(
-                                  color: Colors.red,
-                                  shape: BoxShape.circle,
-                                ),
-                                padding: EdgeInsets.all(4.w),
-                                child: Icon(
-                                  Icons.close,
-                                  color: Colors.white,
-                                  size: 16.sp,
-                                ),
-                              ),
+                          SizedBox(height: 8.h),
+                          Text(
+                            _selectedPhotos.length < 5
+                                ? 'Tambah Foto (${_selectedPhotos.length}/5)'
+                                : 'Maksimal 5 foto',
+                            style: TextStyle(
+                              color: _selectedPhotos.length < 5
+                                  ? Colors.green
+                                  : Colors.grey,
+                              fontSize: 14.sp,
                             ),
                           ),
                         ],
-                      );
-                    },
+                      ),
+                    ),
                   ),
 
                   SizedBox(height: 15.h),
 
-                  // Upload Photos Button
-                  if (_uploadedPhotoUrls.isEmpty && !_isUploading)
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: _uploadPhotos,
-                        icon: const Icon(Icons.cloud_upload),
-                        label: const Text('Unggah Foto'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
-                          padding: EdgeInsets.symmetric(vertical: 12.h),
-                        ),
+                  // Selected Photos Grid
+                  if (_selectedPhotos.isNotEmpty) ...[
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        crossAxisSpacing: 10.w,
+                        mainAxisSpacing: 10.h,
+                        childAspectRatio: 1,
                       ),
+                      itemCount: _selectedPhotos.length,
+                      itemBuilder: (context, index) {
+                        return Stack(
+                          children: [
+                            Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8.r),
+                                border: Border.all(color: Colors.grey.shade300),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8.r),
+                                child: Image.file(
+                                  _selectedPhotos[index],
+                                  fit: BoxFit.cover,
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              top: 4,
+                              right: 4,
+                              child: GestureDetector(
+                                onTap: () => _removePhoto(index),
+                                child: Container(
+                                  decoration: const BoxDecoration(
+                                    color: Colors.red,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  padding: EdgeInsets.all(4.w),
+                                  child: Icon(
+                                    Icons.close,
+                                    color: Colors.white,
+                                    size: 16.sp,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
 
-                  // Upload Progress
-                  if (_isUploading) ...[
-                    SizedBox(height: 10.h),
-                    Column(
-                      children: [
-                        LinearProgressIndicator(
-                          value: _uploadProgress,
-                          backgroundColor: Colors.grey.shade300,
-                          valueColor: const AlwaysStoppedAnimation<Color>(
-                            Colors.blue,
+                    SizedBox(height: 15.h),
+
+                    // Upload Photos Button
+                    if (_uploadedPhotoUrls.isEmpty && !_isUploading)
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _uploadPhotos,
+                          icon: const Icon(Icons.cloud_upload),
+                          label: const Text('Unggah Foto'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue,
+                            foregroundColor: Colors.white,
+                            padding: EdgeInsets.symmetric(vertical: 12.h),
                           ),
                         ),
-                        SizedBox(height: 8.h),
-                        Text(
-                          'Mengunggah foto... ${(_uploadProgress * 100).toInt()}%',
-                          style: TextStyle(fontSize: 14.sp, color: Colors.blue),
-                        ),
-                      ],
-                    ),
-                  ],
-
-                  // Upload Success
-                  if (_uploadedPhotoUrls.isNotEmpty) ...[
-                    Container(
-                      padding: EdgeInsets.all(12.w),
-                      decoration: BoxDecoration(
-                        color: Colors.green.shade50,
-                        borderRadius: BorderRadius.circular(8.r),
-                        border: Border.all(color: Colors.green.shade300),
                       ),
-                      child: Row(
+
+                    // Upload Progress
+                    if (_isUploading) ...[
+                      SizedBox(height: 10.h),
+                      Column(
                         children: [
-                          Icon(
-                            Icons.check_circle,
-                            color: Colors.green,
-                            size: 20.sp,
+                          LinearProgressIndicator(
+                            value: _uploadProgress,
+                            backgroundColor: Colors.grey.shade300,
+                            valueColor: const AlwaysStoppedAnimation<Color>(
+                              Colors.blue,
+                            ),
                           ),
-                          SizedBox(width: 10.w),
+                          SizedBox(height: 8.h),
                           Text(
-                            '${_uploadedPhotoUrls.length} foto berhasil diunggah',
+                            'Mengunggah foto... ${(_uploadProgress * 100).toInt()}%',
                             style: TextStyle(
-                              color: Colors.green.shade700,
                               fontSize: 14.sp,
-                              fontWeight: FontWeight.w500,
+                              color: Colors.blue,
                             ),
                           ),
                         ],
                       ),
-                    ),
+                    ],
+
+                    // Upload Success
+                    if (_uploadedPhotoUrls.isNotEmpty) ...[
+                      Container(
+                        padding: EdgeInsets.all(12.w),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade50,
+                          borderRadius: BorderRadius.circular(8.r),
+                          border: Border.all(color: Colors.green.shade300),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.check_circle,
+                              color: Colors.green,
+                              size: 20.sp,
+                            ),
+                            SizedBox(width: 10.w),
+                            Text(
+                              '${_uploadedPhotoUrls.length} foto berhasil diunggah',
+                              style: TextStyle(
+                                color: Colors.green.shade700,
+                                fontSize: 14.sp,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
-                ],
 
-                SizedBox(height: 20.h),
+                  SizedBox(height: 20.h),
 
-                // Notes
-                TextFormField(
-                  controller: _notesController,
-                  decoration: InputDecoration(
-                    labelText: 'Catatan Tambahan (Opsional)',
-                    hintText: 'Catatan kondisi barang, lokasi penerimaan, dll.',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8.r),
-                    ),
-                    prefixIcon: const Icon(Icons.note, color: Colors.green),
-                  ),
-                  maxLines: 3,
-                ),
-
-                SizedBox(height: 30.h),
-
-                // Complete Delivery Button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _uploadedPhotoUrls.isNotEmpty && !_isLoading
-                        ? _completeDelivery
-                        : null,
-                    icon: const Icon(Icons.check_circle),
-                    label: Text(
-                      'Selesaikan Pengiriman',
-                      style: TextStyle(fontSize: 16.sp),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(vertical: 15.h),
-                      shape: RoundedRectangleBorder(
+                  // Notes
+                  TextFormField(
+                    controller: _notesController,
+                    decoration: InputDecoration(
+                      labelText: 'Catatan Tambahan (Opsional)',
+                      hintText:
+                          'Catatan kondisi barang, lokasi penerimaan, dll.',
+                      border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8.r),
+                      ),
+                      prefixIcon: const Icon(Icons.note, color: Colors.green),
+                    ),
+                    maxLines: 3,
+                  ),
+
+                  SizedBox(height: 30.h),
+
+                  // Complete Delivery Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _uploadedPhotoUrls.isNotEmpty && !_isLoading
+                          ? _completeDelivery
+                          : null,
+                      icon: const Icon(Icons.check_circle),
+                      label: Text(
+                        'Selesaikan Pengiriman',
+                        style: TextStyle(fontSize: 16.sp),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(vertical: 15.h),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8.r),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
-      ),
+        if (_isLoading)
+          Container(
+            color: Colors.black.withOpacity(0.5),
+            child: const Center(child: CircularProgressIndicator()),
+          ),
+      ],
     );
   }
 
-  Widget _buildInfoRow(String label, String value) {
+  Widget _buildInfoRow(String label, String? value) {
     return Padding(
       padding: EdgeInsets.only(bottom: 8.h),
       child: Row(
@@ -595,7 +604,7 @@ class _DeliveryConfirmationScreenState
           ),
           Expanded(
             child: Text(
-              value,
+              value ?? '-',
               style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w500),
             ),
           ),

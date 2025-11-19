@@ -1,21 +1,24 @@
 import 'user_profile.dart';
 import 'order.dart';
 
-/// Model untuk Shipment (Pengiriman)
+/// Model untuk Shipment (Pengiriman) - shipments table
 class Shipment {
-  final String id;
-  final String orderId;
-  final String driverId;
-  final String deliveryNoteNumber;
+  final String id; // UUID primary key
+  final String orderId; // Foreign key to orders
+  final String driverId; // Foreign key to profiles
+  final String deliveryNoteNumber; // UNIQUE
   final String? deliveryNoteUrl;
-  final String? deliveryPhotoUrl;
-  final DateTime? pickupDate;
-  final DateTime? deliveryDate;
-  final String status;
-  final String? destinationAddress;
-  final String? notes;
+  final String? proofOfDeliveryUrl;
+  final String status; // pending, in_transit, arrived, completed
+  final DateTime assignedAt;
+  final DateTime? startedAt;
+  final DateTime? completedAt;
+  final DateTime? estimatedArrival;
   final DateTime createdAt;
   final DateTime? updatedAt;
+  final DateTime? estimatedDelivery;
+  final DateTime? actualDelivery;
+  final String? trackingNumber;
 
   // Relasi
   final UserProfile? driver;
@@ -27,14 +30,17 @@ class Shipment {
     required this.driverId,
     required this.deliveryNoteNumber,
     this.deliveryNoteUrl,
-    this.deliveryPhotoUrl,
-    this.pickupDate,
-    this.deliveryDate,
+    this.proofOfDeliveryUrl,
     required this.status,
-    this.destinationAddress,
-    this.notes,
+    required this.assignedAt,
+    this.startedAt,
+    this.completedAt,
+    this.estimatedArrival,
     required this.createdAt,
     this.updatedAt,
+    this.estimatedDelivery,
+    this.actualDelivery,
+    this.trackingNumber,
     this.driver,
     this.order,
   });
@@ -46,19 +52,29 @@ class Shipment {
       driverId: json['driver_id'] as String,
       deliveryNoteNumber: json['delivery_note_number'] as String,
       deliveryNoteUrl: json['delivery_note_url'] as String?,
-      deliveryPhotoUrl: json['delivery_photo_url'] as String?,
-          ? DateTime.parse(json['pickup_date'] as String)
-          : null,
-      deliveryDate: json['delivery_date'] != null
-          ? DateTime.parse(json['delivery_date'] as String)
-          : null,
+      proofOfDeliveryUrl: json['proof_of_delivery_url'] as String?,
       status: json['status'] as String,
-      destinationAddress: json['destination_address'] as String?,
-      notes: json['notes'] as String?,
+      assignedAt: DateTime.parse(json['assigned_at'] as String),
+      startedAt: json['started_at'] != null
+          ? DateTime.parse(json['started_at'] as String)
+          : null,
+      completedAt: json['completed_at'] != null
+          ? DateTime.parse(json['completed_at'] as String)
+          : null,
+      estimatedArrival: json['estimated_arrival'] != null
+          ? DateTime.parse(json['estimated_arrival'] as String)
+          : null,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: json['updated_at'] != null
           ? DateTime.parse(json['updated_at'] as String)
           : null,
+      estimatedDelivery: json['estimated_delivery'] != null
+          ? DateTime.parse(json['estimated_delivery'] as String)
+          : null,
+      actualDelivery: json['actual_delivery'] != null
+          ? DateTime.parse(json['actual_delivery'] as String)
+          : null,
+      trackingNumber: json['tracking_number'] as String?,
       driver: json['profiles'] != null
           ? UserProfile.fromJson(json['profiles'] as Map<String, dynamic>)
           : null,
@@ -75,14 +91,17 @@ class Shipment {
       'driver_id': driverId,
       'delivery_note_number': deliveryNoteNumber,
       'delivery_note_url': deliveryNoteUrl,
-      'delivery_photo_url': deliveryPhotoUrl,
-      'pickup_date': pickupDate?.toIso8601String(),
-      'delivery_date': deliveryDate?.toIso8601String(),
+      'proof_of_delivery_url': proofOfDeliveryUrl,
       'status': status,
-      'destination_address': destinationAddress,
-      'notes': notes,
+      'assigned_at': assignedAt.toIso8601String(),
+      'started_at': startedAt?.toIso8601String(),
+      'completed_at': completedAt?.toIso8601String(),
+      'estimated_arrival': estimatedArrival?.toIso8601String(),
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
+      'estimated_delivery': estimatedDelivery?.toIso8601String(),
+      'actual_delivery': actualDelivery?.toIso8601String(),
+      'tracking_number': trackingNumber,
     };
   }
 
@@ -93,37 +112,42 @@ class Shipment {
   String get orderNumber => order?.orderNumber ?? 'Unknown Order';
 
   /// Helper method untuk cek apakah pengiriman bisa dimulai
-  bool get canStart => status == 'assigned';
+  bool get canStart => status == 'pending';
 
   /// Helper method untuk cek apakah pengiriman sedang dalam perjalanan
-  bool get inProgress => status == 'picked_up';
+  bool get inProgress => status == 'in_transit';
+
+  /// Helper method untuk cek apakah pengiriman sudah tiba
+  bool get hasArrived => status == 'arrived';
 
   /// Helper method untuk cek apakah pengiriman sudah selesai
-  bool get isCompleted => status == 'delivered';
+  bool get isCompleted => status == 'completed';
 
   /// Helper method untuk cek apakah ada delivery note
-  bool get hasDeliveryNote => deliveryNoteUrl != null && deliveryNoteUrl!.isNotEmpty;
+  bool get hasDeliveryNote =>
+      deliveryNoteUrl != null && deliveryNoteUrl!.isNotEmpty;
 
   /// Helper method untuk cek apakah ada bukti kirim
-  bool get hasDeliveryPhoto => deliveryPhotoUrl != null && deliveryPhotoUrl!.isNotEmpty;
+  bool get hasProofOfDelivery =>
+      proofOfDeliveryUrl != null && proofOfDeliveryUrl!.isNotEmpty;
 
-  /// Helper method untuk format tanggal pickup
-  String get formattedPickupDate {
-    if (pickupDate == null) return '-';
-    return _formatDateTime(pickupDate!);
+  /// Helper method untuk format tanggal mulai
+  String get formattedStartedAt {
+    if (startedAt == null) return '-';
+    return _formatDateTime(startedAt!);
   }
 
-  /// Helper method untuk format tanggal delivery
-  String get formattedDeliveryDate {
-    if (deliveryDate == null) return '-';
-    return _formatDateTime(deliveryDate!);
+  /// Helper method untuk format tanggal selesai
+  String get formattedCompletedAt {
+    if (completedAt == null) return '-';
+    return _formatDateTime(completedAt!);
   }
 
   /// Helper method untuk format durasi pengiriman
   String get durasiPengiriman {
-    if (tanggalKirim == null || tanggalTiba == null) return '-';
+    if (startedAt == null || completedAt == null) return '-';
 
-    final duration = tanggalTiba!.difference(tanggalKirim!);
+    final duration = completedAt!.difference(startedAt!);
     if (duration.inDays > 0) {
       return '${duration.inDays} hari ${duration.inHours % 24} jam';
     } else if (duration.inHours > 0) {
@@ -131,6 +155,18 @@ class Shipment {
     } else {
       return '${duration.inMinutes} menit';
     }
+  }
+
+  /// Helper method untuk format estimated delivery
+  String get formattedEstimatedDelivery {
+    if (estimatedDelivery == null) return '-';
+    return _formatDateTime(estimatedDelivery!);
+  }
+
+  /// Helper method untuk format actual delivery
+  String get formattedActualDelivery {
+    if (actualDelivery == null) return '-';
+    return _formatDateTime(actualDelivery!);
   }
 
   String _formatDateTime(DateTime dateTime) {
@@ -164,14 +200,17 @@ class Shipment {
     String? driverId,
     String? deliveryNoteNumber,
     String? deliveryNoteUrl,
-    String? deliveryPhotoUrl,
-    DateTime? pickupDate,
-    DateTime? deliveryDate,
+    String? proofOfDeliveryUrl,
     String? status,
-    String? destinationAddress,
-    String? notes,
+    DateTime? assignedAt,
+    DateTime? startedAt,
+    DateTime? completedAt,
+    DateTime? estimatedArrival,
     DateTime? createdAt,
     DateTime? updatedAt,
+    DateTime? estimatedDelivery,
+    DateTime? actualDelivery,
+    String? trackingNumber,
     UserProfile? driver,
     Order? order,
   }) {
@@ -181,14 +220,17 @@ class Shipment {
       driverId: driverId ?? this.driverId,
       deliveryNoteNumber: deliveryNoteNumber ?? this.deliveryNoteNumber,
       deliveryNoteUrl: deliveryNoteUrl ?? this.deliveryNoteUrl,
-      deliveryPhotoUrl: deliveryPhotoUrl ?? this.deliveryPhotoUrl,
-      pickupDate: pickupDate ?? this.pickupDate,
-      deliveryDate: deliveryDate ?? this.deliveryDate,
+      proofOfDeliveryUrl: proofOfDeliveryUrl ?? this.proofOfDeliveryUrl,
       status: status ?? this.status,
-      destinationAddress: destinationAddress ?? this.destinationAddress,
-      notes: notes ?? this.notes,
+      assignedAt: assignedAt ?? this.assignedAt,
+      startedAt: startedAt ?? this.startedAt,
+      completedAt: completedAt ?? this.completedAt,
+      estimatedArrival: estimatedArrival ?? this.estimatedArrival,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      estimatedDelivery: estimatedDelivery ?? this.estimatedDelivery,
+      actualDelivery: actualDelivery ?? this.actualDelivery,
+      trackingNumber: trackingNumber ?? this.trackingNumber,
       driver: driver ?? this.driver,
       order: order ?? this.order,
     );

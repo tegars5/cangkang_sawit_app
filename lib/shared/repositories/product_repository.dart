@@ -8,11 +8,14 @@ class ProductRepository {
   /// Get semua produk yang aktif
   Future<List<Product>> getAllProducts() async {
     try {
+      // DB columns: id, nama_produk, harga, satuan, is_active
       final response = await _supabaseService.client
           .from('products')
-          .select()
+          .select(
+            'id, nama_produk, harga, satuan, is_active, created_at, updated_at',
+          )
           .eq('is_active', true)
-          .order('name');
+          .order('nama_produk');
 
       return (response as List)
           .map((product) => Product.fromJson(product))
@@ -27,7 +30,9 @@ class ProductRepository {
     try {
       final response = await _supabaseService.client
           .from('products')
-          .select()
+          .select(
+            'id, nama_produk, harga, satuan, is_active, created_at, updated_at',
+          )
           .eq('id', productId)
           .single();
 
@@ -44,10 +49,13 @@ class ProductRepository {
     required String unit,
   }) async {
     try {
+      // DB columns: nama_produk, harga, satuan
       final response = await _supabaseService.client
           .from('products')
-          .insert({'name': name, 'price': price, 'unit': unit})
-          .select()
+          .insert({'nama_produk': name, 'harga': price, 'satuan': unit})
+          .select(
+            'id, nama_produk, harga, satuan, is_active, created_at, updated_at',
+          )
           .single();
 
       return Product.fromJson(response);
@@ -68,13 +76,15 @@ class ProductRepository {
       final response = await _supabaseService.client
           .from('products')
           .update({
-            'name': name,
-            'price': price,
-            'unit': unit,
+            'nama_produk': name,
+            'harga': price,
+            'satuan': unit,
             if (isActive != null) 'is_active': isActive,
           })
           .eq('id', productId)
-          .select()
+          .select(
+            'id, nama_produk, harga, satuan, is_active, created_at, updated_at',
+          )
           .single();
 
       return Product.fromJson(response);
@@ -100,10 +110,12 @@ class ProductRepository {
     try {
       final response = await _supabaseService.client
           .from('products')
-          .select()
+          .select(
+            'id, nama_produk, harga, satuan, is_active, created_at, updated_at',
+          )
           .eq('is_active', true)
-          .ilike('name', '%$query%')
-          .order('name');
+          .ilike('nama_produk', '%$query%')
+          .order('nama_produk');
 
       return (response as List)
           .map((product) => Product.fromJson(product))

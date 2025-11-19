@@ -1,13 +1,11 @@
 import 'dart:async';
 import 'dart:developer';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../config/supabase_client.dart';
+import '../services/supabase_service.dart';
 import '../../shared/models/shipment.dart';
-import '../../shared/models/order.dart';
-import '../../shared/models/user_profile.dart';
 
 class ShipmentRepository {
-  static final SupabaseClient _supabase = SupabaseConfig.client;
+  static final SupabaseClient _supabase = SupabaseService.instance.client;
   static const String _tableName = 'shipments';
 
   // Stream controllers for real-time updates
@@ -55,31 +53,32 @@ class ShipmentRepository {
     int? offset,
   }) async {
     try {
-      var query = _supabase.from(_tableName).select('''
+      // Build query - use dynamic to avoid type issues
+      dynamic queryBuilder = _supabase.from(_tableName).select('''
             *,
             driver:driver_id(id, full_name, phone_number, avatar_url),
             order:order_id(id, customer_name, customer_address, total_amount, status)
           ''');
 
+      // Apply filters
       if (driverId != null) {
-        query = query.eq('driver_id', driverId);
+        queryBuilder = queryBuilder.eq('driver_id', driverId);
       }
 
       if (status != null) {
-        query = query.eq('status', status);
+        queryBuilder = queryBuilder.eq('status', status);
       }
 
       if (limit != null) {
-        query = query.limit(limit);
+        queryBuilder = queryBuilder.limit(limit);
       }
 
       if (offset != null) {
-        query = query.range(offset, offset + (limit ?? 20) - 1);
+        queryBuilder = queryBuilder.range(offset, offset + (limit ?? 20) - 1);
       }
 
-      query = query.order('created_at', ascending: false);
-
-      final response = await query;
+      // Execute query with order
+      final response = await queryBuilder.order('created_at', ascending: false);
 
       return (response as List<dynamic>)
           .map((json) => Shipment.fromJson(json as Map<String, dynamic>))
@@ -110,7 +109,7 @@ class ShipmentRepository {
             driver:driver_id(id, full_name, phone_number, avatar_url),
             order:order_id(id, customer_name, customer_address, total_amount, status)
           ''')
-          .in_('status', ['assigned', 'picked_up'])
+          .inFilter('status', ['assigned', 'picked_up'])
           .order('created_at', ascending: false);
 
       return (response as List<dynamic>)
@@ -141,7 +140,7 @@ class ShipmentRepository {
 
       if (response == null) return null;
 
-      return Shipment.fromJson(response as Map<String, dynamic>);
+      return Shipment.fromJson(response);
     } catch (e, stackTrace) {
       log('Error getting shipment by ID: $e', error: e, stackTrace: stackTrace);
       throw Exception('Failed to get shipment: $e');
@@ -182,7 +181,7 @@ class ShipmentRepository {
           ''')
           .single();
 
-      final shipment = Shipment.fromJson(response as Map<String, dynamic>);
+      final shipment = Shipment.fromJson(response);
       _shipmentUpdatesController.add(shipment);
 
       log('Created shipment: ${shipment.id}');
@@ -230,7 +229,7 @@ class ShipmentRepository {
           ''')
           .single();
 
-      final shipment = Shipment.fromJson(response as Map<String, dynamic>);
+      final shipment = Shipment.fromJson(response);
       _shipmentUpdatesController.add(shipment);
 
       log('Updated shipment status: ${shipment.id} -> $newStatus');
@@ -288,7 +287,7 @@ class ShipmentRepository {
           ''')
           .single();
 
-      final shipment = Shipment.fromJson(response as Map<String, dynamic>);
+      final shipment = Shipment.fromJson(response);
       _shipmentUpdatesController.add(shipment);
 
       log('Updated shipment: ${shipment.id}');
@@ -354,11 +353,12 @@ class ShipmentRepository {
     try {
       final response = await _supabase
           .from(_tableName)
-          .select('id', const FetchOptions(count: CountOption.exact))
+          .select('id')
           .eq('driver_id', driverId)
-          .in_('status', ['assigned', 'picked_up']);
+          .inFilter('status', ['assigned', 'picked_up']);
 
-      return response.count ?? 0;
+      // Count manually from response list
+      return (response as List).length;
     } catch (e, stackTrace) {
       log(
         'Error getting pending shipments count: $e',

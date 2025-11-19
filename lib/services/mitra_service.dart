@@ -9,21 +9,29 @@ class MitraService {
       final productRepository = ProductRepository();
       final products = await productRepository.getAllProducts();
 
-      final productsJson = products
-          .map(
-            (product) => {
-              'id': product.id,
-              'name': product.name,
-              'price': product.price,
-              'unit': product.unit,
-              'is_active': product.isActive,
-              'created_at': product.createdAt?.toIso8601String(),
-              'updated_at': product.updatedAt?.toIso8601String(),
-              'formatted_price': product.formattedPrice,
-              'display_name': product.displayName,
-            },
-          )
-          .toList();
+      // Map product model to the shape expected by the Mitra UI.
+      // The UI expects fields like `price_per_kg`, `stock`, and `description`.
+      // If those fields don't exist in the product model, provide reasonable
+      // defaults so the UI can render without crashing.
+      final productsJson = products.map((product) {
+        return {
+          'id': product.id,
+          'name': product.name,
+          // Keep a compatible key used in the UI. Use `price` from the model
+          // and expose it as `price_per_kg` so the existing screens keep working.
+          'price_per_kg': product.price,
+          'price': product.price,
+          'unit': product.unit,
+          'stock': 999999, // default high stock if DB doesn't provide it
+          // Provide blank description if none exists.
+          'description': '',
+          'is_active': product.isActive,
+          'created_at': product.createdAt?.toIso8601String(),
+          'updated_at': product.updatedAt?.toIso8601String(),
+          'formatted_price': product.formattedPrice,
+          'display_name': product.displayName,
+        };
+      }).toList();
 
       return {'success': true, 'data': productsJson};
     } catch (e) {
@@ -35,6 +43,8 @@ class MitraService {
   static Future<Map<String, dynamic>> createOrder({
     required String productId,
     required double quantity,
+    String? deliveryAddress,
+    DateTime? requestedDeliveryDate,
     String? notes,
   }) async {
     try {
@@ -69,7 +79,9 @@ class MitraService {
   static Future<Map<String, dynamic>> getMyOrders() async {
     try {
       final orderRepository = OrderRepository();
-      final orders = await orderRepository.getOrdersByCurrentUser();
+      // Use the repository's `getOrders` which already filters by current user
+      // based on auth/profile role. `getOrdersByCurrentUser` wasn't defined.
+      final orders = await orderRepository.getOrders();
 
       final ordersJson = orders
           .map(

@@ -19,11 +19,13 @@ class Product {
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
+    // Handle both English and Indonesian column names from DB
+    // DB uses: id, nama_produk, harga, satuan (not product_id anymore)
     return Product(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      price: (json['price'] as num).toDouble(),
-      unit: json['unit'] as String,
+      id: (json['id'] ?? json['product_id'])?.toString() ?? '',
+      name: (json['name'] ?? json['nama_produk']) as String,
+      price: ((json['price'] ?? json['harga']) as num).toDouble(),
+      unit: (json['unit'] ?? json['satuan']) as String,
       isActive: json['is_active'] as bool? ?? true,
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'] as String)
