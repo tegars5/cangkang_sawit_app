@@ -7,7 +7,7 @@ class Role {
 
   factory Role.fromJson(Map<String, dynamic> json) {
     return Role(
-      roleId: json['role_id'] as int,
+      roleId: (json['role_id'] as num?)?.toInt() ?? 0,
       namaPenan: json['nama_peran'] as String,
     );
   }

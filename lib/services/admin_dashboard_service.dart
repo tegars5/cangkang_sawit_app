@@ -197,7 +197,7 @@ class AdminDashboardService {
         return {
           'id': product['id']?.toString() ?? '',
           'name': product['nama_produk'] ?? '',
-          'price_per_kg': product['harga'] ?? 0,
+          'price_per_ton': product['harga'] ?? 0,
           'unit': product['satuan'] ?? 'ton',
           'is_active': product['is_active'] ?? true,
           'created_at': product['created_at'] ?? '',
@@ -215,13 +215,13 @@ class AdminDashboardService {
   static Future<Map<String, dynamic>> addProduct({
     required String name,
     required String description,
-    required double pricePerKg,
+    required double pricePerTon,
     String unit = 'ton',
   }) async {
     try {
       await _supabase.from('products').insert({
         'nama_produk': name,
-        'harga': pricePerKg,
+        'harga': pricePerTon,
         'satuan': unit,
         'is_active': true,
         'created_at': DateTime.now().toIso8601String(),
@@ -239,13 +239,13 @@ class AdminDashboardService {
   static Future<Map<String, dynamic>> updateProduct({
     required String productId,
     required String name,
-    required double pricePerKg,
+    required double pricePerTon,
     String? unit,
   }) async {
     try {
       final updateData = {
         'nama_produk': name,
-        'harga': pricePerKg,
+        'harga': pricePerTon,
         'updated_at': DateTime.now().toIso8601String(),
       };
 

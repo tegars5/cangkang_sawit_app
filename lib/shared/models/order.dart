@@ -58,9 +58,10 @@ class Order {
       customerId: json['customer_id'] as String,
       orderDate: DateTime.parse(json['order_date'] as String),
       status: json['status'] as String,
-      totalQuantity: (json['total_quantity'] as num).toDouble(),
-      confirmedQuantity: (json['confirmed_quantity'] as num?)?.toDouble() ?? 0,
-      totalAmount: (json['total_amount'] as num).toDouble(),
+      totalQuantity: (json['total_quantity'] as num?)?.toDouble() ?? 0.0,
+      confirmedQuantity:
+          (json['confirmed_quantity'] as num?)?.toDouble() ?? 0.0,
+      totalAmount: (json['total_amount'] as num?)?.toDouble() ?? 0.0,
       adminNotes: json['admin_notes'] as String?,
       customerNotes: json['customer_notes'] as String?,
       confirmedAt: json['confirmed_at'] != null
@@ -259,10 +260,12 @@ class OrderDetail {
       id: json['id'] as String,
       orderId: json['order_id'] as String,
       productId: json['product_id'] as String,
-      requestedQuantity: (json['requested_quantity'] as num).toDouble(),
-      confirmedQuantity: (json['confirmed_quantity'] as num?)?.toDouble() ?? 0,
-      unitPrice: (json['unit_price'] as num).toDouble(),
-      subtotal: (json['subtotal'] as num).toDouble(),
+      requestedQuantity:
+          (json['requested_quantity'] as num?)?.toDouble() ?? 0.0,
+      confirmedQuantity:
+          (json['confirmed_quantity'] as num?)?.toDouble() ?? 0.0,
+      unitPrice: (json['unit_price'] as num?)?.toDouble() ?? 0.0,
+      subtotal: (json['subtotal'] as num?)?.toDouble() ?? 0.0,
       notes: json['notes'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: json['updated_at'] != null

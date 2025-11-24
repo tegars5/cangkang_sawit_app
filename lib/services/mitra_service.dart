@@ -2,6 +2,7 @@ import '../shared/repositories/order_repository.dart';
 import '../shared/repositories/product_repository.dart';
 
 /// Service untuk Mitra Bisnis Dashboard
+/// Berfungsi sebagai "Adapter" antara UI Lama dengan Repository Baru
 class MitraService {
   /// Get products catalog untuk mitra
   static Future<Map<String, dynamic>> getProducts() async {
@@ -9,27 +10,27 @@ class MitraService {
       final productRepository = ProductRepository();
       final products = await productRepository.getAllProducts();
 
-      // Map product model to the shape expected by the Mitra UI.
-      // The UI expects fields like `price_per_kg`, `stock`, and `description`.
-      // If those fields don't exist in the product model, provide reasonable
-      // defaults so the UI can render without crashing.
+      // Mapping model Product baru ke format JSON lama agar UI tidak error
       final productsJson = products.map((product) {
         return {
           'id': product.id,
           'name': product.name,
-          // Keep a compatible key used in the UI. Use `price` from the model
-          // and expose it as `price_per_kg` so the existing screens keep working.
-          'price_per_kg': product.price,
           'price': product.price,
+          'price_per_ton':
+              product.price, // Mapping untuk kompatibilitas UI lama
           'unit': product.unit,
-          'stock': 999999, // default high stock if DB doesn't provide it
-          // Provide blank description if none exists.
-          'description': '',
+          'stock': product.stockAvailable, // Gunakan stockAvailable dari model
+          'stock_available':
+              product.stockAvailable, // Field tambahan untuk konsistensi
+          'description':
+              product.description ?? '', // Gunakan description dari model
           'is_active': product.isActive,
           'created_at': product.createdAt?.toIso8601String(),
           'updated_at': product.updatedAt?.toIso8601String(),
           'formatted_price': product.formattedPrice,
+          'formatted_stock': product.formattedStock, // Tambahan helper
           'display_name': product.displayName,
+          'has_stock': product.hasStock, // Tambahan helper
         };
       }).toList();
 
@@ -40,25 +41,28 @@ class MitraService {
   }
 
   /// Create new order
+  /// DEPRECATED: Fitur ini sekarang ditangani langsung oleh OrderRepository di CreateOrderScreen.
+  /// Kita matikan fungsinya agar tidak ada penggunaan ganda yang membingungkan.
   static Future<Map<String, dynamic>> createOrder({
     required String productId,
     required double quantity,
-    String? deliveryAddress,
-    DateTime? requestedDeliveryDate,
     String? notes,
   }) async {
+    return {
+      'success': false,
+      'error': 'Metode ini tidak lagi digunakan. Gunakan OrderRepository.',
+    };
+  }
+
+  /// Get mitra's orders
+  static Future<Map<String, dynamic>> getMyOrders() async {
     try {
       final orderRepository = OrderRepository();
-      final order = await orderRepository.createOrder(
-        orderItems: [
-          {'product_id': productId, 'quantity': quantity},
-        ],
-        catatan: notes,
-      );
+      // Menggunakan fungsi baru dari repository
+      final orders = await orderRepository.getMyOrders();
 
-      return {
-        'success': true,
-        'data': {
+      final ordersJson = orders.map((order) {
+        return {
           'id': order.id,
           'order_number': order.orderNumber,
           'customer_id': order.customerId,
@@ -67,59 +71,33 @@ class MitraService {
           'customer_notes': order.customerNotes,
           'created_at': order.createdAt.toIso8601String(),
           'updated_at': order.updatedAt?.toIso8601String(),
-        },
-        'message': 'Pesanan berhasil dibuat dengan nomor: ${order.orderNumber}',
-      };
-    } catch (e) {
-      return {'success': false, 'error': 'Gagal membuat pesanan: $e'};
-    }
-  }
+          'formatted_total_amount': order.formattedTotalAmount,
 
-  /// Get mitra's orders
-  static Future<Map<String, dynamic>> getMyOrders() async {
-    try {
-      final orderRepository = OrderRepository();
-      // Use the repository's `getOrders` which already filters by current user
-      // based on auth/profile role. `getOrdersByCurrentUser` wasn't defined.
-      final orders = await orderRepository.getOrders();
+          // Field pelengkap untuk UI lama
+          'customer_name': 'Saya',
+          'can_be_confirmed': false,
+          'can_be_shipped': false,
+          'is_completed': order.status == 'completed',
 
-      final ordersJson = orders
-          .map(
-            (order) => {
-              'id': order.id,
-              'order_number': order.orderNumber,
-              'customer_id': order.customerId,
-              'status': order.status,
-              'total_amount': order.totalAmount,
-              'customer_notes': order.customerNotes,
-              'created_at': order.createdAt.toIso8601String(),
-              'updated_at': order.updatedAt?.toIso8601String(),
-              'formatted_total_amount': order.formattedTotalAmount,
-              'customer_name': order.customerName,
-              'can_be_confirmed': order.canBeConfirmed,
-              'can_be_shipped': order.canBeShipped,
-              'is_completed': order.isCompleted,
-              'order_details': order.orderDetails
-                  ?.map(
-                    (detail) => {
-                      'id': detail.id,
-                      'product_id': detail.productId,
-                      'total_quantity': detail.totalQuantity,
-                      'confirmed_quantity': detail.confirmedQuantity,
-                      'unit_price': detail.unitPrice,
-                      'subtotal': detail.subtotal,
-                      'product_name': detail.productName,
-                      'product_unit': detail.productUnit,
-                      'formatted_unit_price': detail.formattedUnitPrice,
-                      'formatted_subtotal': detail.formattedSubtotal,
-                      'is_partially_accepted': detail.isPartiallyAccepted,
-                      'quantity_difference': detail.quantityDifference,
-                    },
-                  )
-                  .toList(),
-            },
-          )
-          .toList();
+          // Mapping Order Details
+          'order_details': order.orderDetails?.map((detail) {
+            return {
+              'id': detail.id,
+              'product_id': detail.productId,
+              // PERBAIKAN UTAMA: Menggunakan requestedQuantity (bukan totalQuantity)
+              'total_quantity': detail.requestedQuantity,
+              'confirmed_quantity': detail.confirmedQuantity,
+              'unit_price': detail.unitPrice,
+              'subtotal': detail.subtotal,
+
+              // Field turunan
+              'product_name': 'Produk Sawit', // Placeholder
+              'formatted_unit_price': 'Rp ${detail.unitPrice}',
+              'formatted_subtotal': 'Rp ${detail.subtotal}',
+            };
+          }).toList(),
+        };
+      }).toList();
 
       return {'success': true, 'data': ordersJson};
     } catch (e) {
@@ -127,16 +105,17 @@ class MitraService {
     }
   }
 
-  /// Get order tracking info
+  /// Get order tracking info (MOCK)
+  /// Menyediakan data dummy agar halaman tracking lama tidak crash saat dibuka
   static Future<Map<String, dynamic>> trackOrder(String orderId) async {
     try {
       // Mock tracking data
       final tracking = {
         'order_id': orderId,
         'current_status': 'in_transit',
-        'tracking_number': 'TRK-20241028-001',
+        'tracking_number': 'TRK-${DateTime.now().millisecondsSinceEpoch}',
         'estimated_delivery': DateTime.now()
-            .add(Duration(hours: 12))
+            .add(const Duration(hours: 12))
             .toIso8601String(),
         'driver': {
           'name': 'Budi Santoso',
@@ -148,49 +127,15 @@ class MitraService {
           'lng': 106.8456,
           'address': 'Jl. Tol Jakarta-Cikampek KM 25',
           'updated_at': DateTime.now()
-              .subtract(Duration(minutes: 15))
+              .subtract(const Duration(minutes: 15))
               .toIso8601String(),
         },
         'timeline': [
           {
-            'status': 'order_placed',
-            'timestamp': DateTime.now()
-                .subtract(Duration(hours: 8))
-                .toIso8601String(),
-            'description': 'Pesanan berhasil dibuat',
-            'icon': 'shopping_cart',
-          },
-          {
-            'status': 'confirmed',
-            'timestamp': DateTime.now()
-                .subtract(Duration(hours: 7))
-                .toIso8601String(),
-            'description': 'Pesanan dikonfirmasi admin',
-            'icon': 'check_circle',
-          },
-          {
-            'status': 'prepared',
-            'timestamp': DateTime.now()
-                .subtract(Duration(hours: 4))
-                .toIso8601String(),
-            'description': 'Barang sedang disiapkan',
-            'icon': 'inventory_2',
-          },
-          {
-            'status': 'picked_up',
-            'timestamp': DateTime.now()
-                .subtract(Duration(hours: 2))
-                .toIso8601String(),
-            'description': 'Barang diambil driver',
-            'icon': 'local_shipping',
-          },
-          {
             'status': 'in_transit',
-            'timestamp': DateTime.now()
-                .subtract(Duration(hours: 1))
-                .toIso8601String(),
-            'description': 'Dalam perjalanan ke alamat tujuan',
-            'icon': 'directions_car',
+            'timestamp': DateTime.now().toIso8601String(),
+            'description': 'Dalam perjalanan',
+            'icon': 'local_shipping',
             'current': true,
           },
         ],
@@ -202,82 +147,52 @@ class MitraService {
     }
   }
 
-  /// Get mitra dashboard stats
+  /// Get mitra dashboard stats (MOCK)
   static Future<Map<String, dynamic>> getDashboardStats() async {
     try {
       final stats = {
-        'total_orders': 15,
-        'pending_orders': 3,
-        'active_orders': 5,
-        'completed_orders': 7,
-        'total_spent': 12500000,
-        'this_month_orders': 8,
-        'avg_delivery_time': 2.5, // days
+        'total_orders': 12,
+        'pending_orders': 2,
+        'active_orders': 1,
+        'completed_orders': 9,
+        'total_spent': 15000000,
+        'this_month_orders': 4,
       };
-
       return {'success': true, 'data': stats};
     } catch (e) {
       return {'success': false, 'error': e.toString()};
     }
   }
 
-  /// Cancel order (only if status is pending)
+  /// Cancel order
   static Future<Map<String, dynamic>> cancelOrder(String orderId) async {
     try {
-      // Simulate API call delay
-      await Future.delayed(Duration(milliseconds: 500));
-
-      return {
-        'success': true,
-        'message': 'Pesanan $orderId berhasil dibatalkan',
-      };
+      final orderRepository = OrderRepository();
+      await orderRepository.cancelOrder(
+        orderId,
+        reason: 'Dibatalkan via Dashboard Mitra',
+      );
+      return {'success': true, 'message': 'Pesanan berhasil dibatalkan'};
     } catch (e) {
       return {'success': false, 'error': e.toString()};
     }
   }
 
-  /// Calculate shipping cost (mock implementation)
+  /// Calculate shipping cost (MOCK)
   static Future<Map<String, dynamic>> calculateShipping({
     required String destination,
     required int quantity,
   }) async {
     try {
-      // Mock shipping calculation
-      await Future.delayed(Duration(milliseconds: 300));
-
-      // Base rate per kg
-      double baseRate = 50.0;
-
-      // Distance factor (mock based on city names)
-      double distanceFactor = 1.0;
-      if (destination.toLowerCase().contains('surabaya')) {
-        distanceFactor = 1.5;
-      } else if (destination.toLowerCase().contains('medan')) {
-        distanceFactor = 2.0;
-      } else if (destination.toLowerCase().contains('makassar')) {
-        distanceFactor = 2.5;
-      }
-
-      // Quantity discount
-      double quantityFactor = 1.0;
-      if (quantity >= 1000) {
-        quantityFactor = 0.8; // 20% discount for bulk orders
-      } else if (quantity >= 500) {
-        quantityFactor = 0.9; // 10% discount
-      }
-
-      double shippingCost =
-          baseRate * quantity * distanceFactor * quantityFactor;
-      int estimatedDays = (1 + (distanceFactor - 1) * 2).round();
-
+      await Future.delayed(const Duration(milliseconds: 300));
       return {
         'success': true,
         'data': {
-          'shipping_cost': shippingCost.round(),
-          'estimated_days': estimatedDays,
-          'base_rate': baseRate,
-          'distance_factor': distanceFactor,
-          'quantity_discount': (1 - quantityFactor) * 100, // percentage
+          'shipping_cost': 500000,
+          'estimated_days': 2,
+          'base_rate': 50.0,
+          'distance_factor': 1.0,
+          'quantity_discount': 0,
         },
       };
     } catch (e) {

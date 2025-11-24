@@ -1,229 +1,99 @@
-import '../models/driver_location.dart';
-import '../../core/services/supabase_service.dart';
+// lib/shared/repositories/location_repository.dart
 
-/// Repository untuk mengelola operasi Driver Location
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/models.dart';
+
 class LocationRepository {
-  final SupabaseService _supabaseService = SupabaseService.instance;
+  final SupabaseClient _client = Supabase.instance.client;
 
-  /// Save location update dari driver
-  Future<DriverLocation> saveLocation({
+  /// **FOR DRIVER APP:**
+  /// Send current GPS location to database
+  /// Call this every 10-30 seconds from a background service
+  Future<void> updateDriverLocation({
+    required String shipmentId,
     required String driverId,
     required double latitude,
     required double longitude,
-    String? shipmentId,
-    double? accuracy,
+    double? heading,
     double? speed,
-    double? bearing,
   }) async {
     try {
-      final response = await _supabaseService.client
-          .from('driver_locations')
-          .insert({
-            'driver_id': driverId,
-            'shipment_id': shipmentId,
-            'latitude': latitude,
-            'longitude': longitude,
-            'accuracy': accuracy,
-            'speed': speed,
-            'bearing': bearing,
-            'timestamp': DateTime.now().toIso8601String(),
-          })
-          .select()
-          .single();
-
-      return DriverLocation.fromJson(response);
+      await _client.from('driver_locations').insert({
+        'shipment_id': shipmentId,
+        'driver_id': driverId,
+        'latitude': latitude,
+        'longitude': longitude,
+        'heading': heading,
+        'speed': speed,
+        'timestamp': DateTime.now().toIso8601String(),
+      });
     } catch (e) {
-      throw Exception('Gagal menyimpan lokasi: $e');
+      // Log error but don't crash app for a single failed ping
+      print('Failed to update location: $e');
     }
   }
 
-  /// Get latest location untuk driver tertentu
-  Future<DriverLocation?> getLatestLocation(String driverId) async {
-    try {
-      final response = await _supabaseService.client
-          .from('driver_locations')
-          .select()
-          .eq('driver_id', driverId)
-          .eq('is_active', true)
-          .order('timestamp', ascending: false)
-          .limit(1)
-          .maybeSingle();
-
-      if (response == null) return null;
-      return DriverLocation.fromJson(response);
-    } catch (e) {
-      throw Exception('Gagal mengambil lokasi driver: $e');
-    }
+  /// **FOR MITRA APP:**
+  /// Listen to real-time location updates for a specific shipment
+  /// This stream will emit a new DriverLocation every time the driver moves
+  Stream<List<DriverLocation>> streamDriverLocation(String shipmentId) {
+    // Supabase Stream query
+    return _client
+        .from('driver_locations')
+        .stream(primaryKey: ['id']) // Primary key required for streaming
+        .eq('shipment_id', shipmentId)
+        .order('timestamp', ascending: false) // Get latest first
+        .limit(1) // We only need the LATEST position for the marker
+        .map(
+          (data) => data.map((json) => DriverLocation.fromJson(json)).toList(),
+        );
   }
 
-  /// Get location history untuk driver tertentu
-  Future<List<DriverLocation>> getLocationHistory({
-    required String driverId,
-    DateTime? startDate,
-    DateTime? endDate,
-    int limit = 100,
-  }) async {
+  /// **FOR ADMIN/HISTORY:**
+  /// Fetch the full route history to draw a Polyline on the map
+  Future<List<DriverLocation>> getDriverRoute(String shipmentId) async {
     try {
-      var query = _supabaseService.client
-          .from('driver_locations')
-          .select()
-          .eq('driver_id', driverId)
-          .eq('is_active', true);
-
-      if (startDate != null) {
-        query = query.gte('timestamp', startDate.toIso8601String());
-      }
-
-      if (endDate != null) {
-        query = query.lte('timestamp', endDate.toIso8601String());
-      }
-
-      final response = await query
-          .order('timestamp', ascending: false)
-          .limit(limit);
-
-      return (response as List)
-          .map((location) => DriverLocation.fromJson(location))
-          .toList();
-    } catch (e) {
-      throw Exception('Gagal mengambil riwayat lokasi: $e');
-    }
-  }
-
-  /// Get semua driver locations yang aktif untuk admin tracking
-  Future<List<DriverLocation>> getAllActiveLocations() async {
-    try {
-      final response = await _supabaseService.client
-          .from('driver_locations')
-          .select('''
-            *,
-            profiles:driver_id(full_name)
-          ''')
-          .eq('is_active', true)
-          .order('timestamp', ascending: false);
-
-      // Group by driver_id dan ambil yang paling recent
-      final Map<String, DriverLocation> latestLocations = {};
-      for (final locationData in response) {
-        final location = DriverLocation.fromJson(locationData);
-        final driverId = location.driverId;
-
-        if (!latestLocations.containsKey(driverId) ||
-            location.timestamp.isAfter(latestLocations[driverId]!.timestamp)) {
-          latestLocations[driverId] = location;
-        }
-      }
-
-      return latestLocations.values.toList();
-    } catch (e) {
-      throw Exception('Gagal mengambil lokasi semua driver: $e');
-    }
-  }
-
-  /// Get locations untuk shipment tertentu
-  Future<List<DriverLocation>> getShipmentLocations(String shipmentId) async {
-    try {
-      final response = await _supabaseService.client
+      final response = await _client
           .from('driver_locations')
           .select()
           .eq('shipment_id', shipmentId)
-          .eq('is_active', true)
-          .order('timestamp', ascending: true);
+          .order(
+            'timestamp',
+            ascending: true,
+          ); // Oldest to newest for drawing line
 
       return (response as List)
-          .map((location) => DriverLocation.fromJson(location))
+          .map((json) => DriverLocation.fromJson(json))
           .toList();
     } catch (e) {
-      throw Exception('Gagal mengambil lokasi shipment: $e');
+      throw Exception('Failed to fetch route history: $e');
     }
   }
 
-  /// Update multiple locations sebagai inactive (cleanup old data)
-  Future<void> deactivateOldLocations({
+  /// Save location with additional parameters for driver dashboard
+  Future<void> saveLocation({
+    required String shipmentId,
     required String driverId,
-    required DateTime before,
+    required double latitude,
+    required double longitude,
+    double? bearing,
+    double? speed,
+    bool? isActive,
   }) async {
     try {
-      await _supabaseService.client
-          .from('driver_locations')
-          .update({'is_active': false})
-          .eq('driver_id', driverId)
-          .lt('timestamp', before.toIso8601String());
+      await _client.from('driver_locations').insert({
+        'shipment_id': shipmentId,
+        'driver_id': driverId,
+        'latitude': latitude,
+        'longitude': longitude,
+        'heading': bearing,
+        'speed': speed,
+        'is_active': isActive ?? true,
+        'timestamp': DateTime.now().toIso8601String(),
+      });
     } catch (e) {
-      throw Exception('Gagal cleanup lokasi lama: $e');
-    }
-  }
-
-  /// Start real-time subscription untuk location updates
-  Stream<DriverLocation> subscribeToDriverLocation(String driverId) {
-    return _supabaseService.client
-        .from('driver_locations')
-        .stream(primaryKey: ['id'])
-        .map((List<Map<String, dynamic>> data) {
-          // Filter untuk driver_id dan is_active = true
-          final filtered = data
-              .where(
-                (location) =>
-                    location['driver_id'] == driverId &&
-                    location['is_active'] == true,
-              )
-              .toList();
-
-          if (filtered.isEmpty) {
-            throw Exception('No location data');
-          }
-
-          // Sort by timestamp dan ambil yang terbaru
-          filtered.sort((a, b) {
-            final aTime = DateTime.parse(a['timestamp'] as String);
-            final bTime = DateTime.parse(b['timestamp'] as String);
-            return bTime.compareTo(aTime); // Descending
-          });
-
-          return DriverLocation.fromJson(filtered.first);
-        });
-  }
-
-  /// Subscribe ke semua active driver locations untuk admin
-  Stream<List<DriverLocation>> subscribeToAllDriverLocations() {
-    return _supabaseService.client
-        .from('driver_locations')
-        .stream(primaryKey: ['id'])
-        .eq('is_active', true)
-        .order('timestamp')
-        .map((List<Map<String, dynamic>> data) {
-          // Group by driver dan ambil yang terbaru
-          final Map<String, DriverLocation> latestLocations = {};
-          for (final locationData in data) {
-            final location = DriverLocation.fromJson(locationData);
-            final driverId = location.driverId;
-
-            if (!latestLocations.containsKey(driverId) ||
-                location.timestamp.isAfter(
-                  latestLocations[driverId]!.timestamp,
-                )) {
-              latestLocations[driverId] = location;
-            }
-          }
-          return latestLocations.values.toList();
-        });
-  }
-
-  /// Bulk save locations (untuk offline sync)
-  Future<List<DriverLocation>> saveMultipleLocations(
-    List<Map<String, dynamic>> locations,
-  ) async {
-    try {
-      final response = await _supabaseService.client
-          .from('driver_locations')
-          .insert(locations)
-          .select();
-
-      return (response as List)
-          .map((location) => DriverLocation.fromJson(location))
-          .toList();
-    } catch (e) {
-      throw Exception('Gagal menyimpan multiple lokasi: $e');
+      print('Failed to save location: $e');
+      rethrow;
     }
   }
 }

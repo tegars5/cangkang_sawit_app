@@ -36,15 +36,20 @@ dependencies:
   cupertino_icons: ^1.0.8
 
   # State Management
-  flutter_riverpod: ^2.5.1
+  flutter_riverpod: ^3.0.3
 
   # Supabase Integration
-  supabase_flutter: ^2.5.6
+  supabase_flutter: ^2.10.3
 
   # Maps & Location
   flutter_map: ^7.0.2
   latlong2: ^0.9.1
   geolocator: ^12.0.0
+  google_maps_flutter: ^2.14.0
+  location: ^6.0.2
+
+  # Path utilities
+  path: ^1.9.0
 
   # Background Services
   flutter_background_service: ^5.0.7
@@ -69,9 +74,10 @@ dependencies:
   flutter_screenutil: ^5.9.3
 
   # Utilities
-  intl: ^0.19.0
+  intl: ^0.20.2
   url_launcher: ^6.3.0
   permission_handler: ^11.3.1
+  uuid: ^4.5.2
 
 dev_dependencies:
   flutter_test:

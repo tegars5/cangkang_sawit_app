@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import '../../services/mitra_service.dart';
+
+import '../../shared/models/models.dart';
+import '../../shared/repositories/order_repository.dart';
+import 'order_tracking_screen.dart';
 
 class OrderHistoryScreen extends ConsumerStatefulWidget {
   const OrderHistoryScreen({super.key});
@@ -12,8 +15,10 @@ class OrderHistoryScreen extends ConsumerStatefulWidget {
 
 class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
     with SingleTickerProviderStateMixin {
-  List<Map<String, dynamic>> orders = [];
-  List<Map<String, dynamic>> filteredOrders = [];
+  final OrderRepository _orderRepository = OrderRepository();
+
+  List<Order> orders = [];
+  List<Order> filteredOrders = [];
   bool isLoading = true;
   String? error;
   String selectedFilter = 'all';
@@ -39,22 +44,15 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
     });
 
     try {
-      final result = await MitraService.getMyOrders();
-      if (result['success']) {
-        setState(() {
-          orders = List<Map<String, dynamic>>.from(result['data']);
-          _filterOrders();
-          isLoading = false;
-        });
-      } else {
-        setState(() {
-          error = result['error'] ?? 'Gagal memuat pesanan';
-          isLoading = false;
-        });
-      }
+      final fetchedOrders = await _orderRepository.getMyOrders();
+      setState(() {
+        orders = fetchedOrders;
+        _filterOrders();
+        isLoading = false;
+      });
     } catch (e) {
       setState(() {
-        error = 'Terjadi kesalahan: $e';
+        error = 'Gagal memuat riwayat pesanan: $e';
         isLoading = false;
       });
     }
@@ -68,32 +66,28 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
           break;
         case 'pending':
           filteredOrders = orders
-              .where((order) => order['status'] == 'pending')
+              .where((order) => order.status == 'pending')
               .toList();
           break;
         case 'processing':
           filteredOrders = orders
-              .where((order) => order['status'] == 'processing')
+              .where((order) => order.status == 'confirmed')
               .toList();
           break;
         case 'shipped':
           filteredOrders = orders
-              .where((order) => order['status'] == 'shipped')
+              .where((order) => order.status == 'shipped')
               .toList();
           break;
         case 'delivered':
           filteredOrders = orders
-              .where((order) => order['status'] == 'delivered')
+              .where((order) => order.status == 'completed')
               .toList();
           break;
       }
 
       // Sort by order date (newest first)
-      filteredOrders.sort(
-        (a, b) => DateTime.parse(
-          b['order_date'],
-        ).compareTo(DateTime.parse(a['order_date'])),
-      );
+      filteredOrders.sort((a, b) => b.orderDate.compareTo(a.orderDate));
     });
   }
 
@@ -165,27 +159,18 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
 
     if (confirmed == true) {
       try {
-        final result = await MitraService.cancelOrder(orderId);
-        if (result['success']) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(result['message']),
-              backgroundColor: Colors.green,
-            ),
-          );
-          _loadOrders(); // Refresh the list
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(result['error'] ?? 'Gagal membatalkan pesanan'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
+        await _orderRepository.cancelOrder(orderId);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Pesanan berhasil dibatalkan'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        _loadOrders(); // Refresh the list
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Terjadi kesalahan: $e'),
+            content: Text('Gagal membatalkan pesanan: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -230,19 +215,19 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
             Tab(text: 'Semua (${orders.length})'),
             Tab(
               text:
-                  'Menunggu (${orders.where((o) => o['status'] == 'pending').length})',
+                  'Menunggu (${orders.where((o) => o.status == 'pending').length})',
             ),
             Tab(
               text:
-                  'Diproses (${orders.where((o) => o['status'] == 'processing').length})',
+                  'Diproses (${orders.where((o) => o.status == 'confirmed').length})',
             ),
             Tab(
               text:
-                  'Dikirim (${orders.where((o) => o['status'] == 'shipped').length})',
+                  'Dikirim (${orders.where((o) => o.status == 'shipped').length})',
             ),
             Tab(
               text:
-                  'Selesai (${orders.where((o) => o['status'] == 'delivered').length})',
+                  'Selesai (${orders.where((o) => o.status == 'completed').length})',
             ),
           ],
         ),
@@ -330,10 +315,10 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
     );
   }
 
-  Widget _buildOrderCard(Map<String, dynamic> order) {
-    final orderDate = DateTime.parse(order['order_date']);
-    final requestedDelivery = DateTime.parse(order['requested_delivery']);
-    final status = order['status'];
+  Widget _buildOrderCard(Order order) {
+    final orderDate = order.orderDate;
+    final requestedDelivery = order.deliveryDate ?? order.orderDate;
+    final status = order.status;
 
     return Card(
       margin: EdgeInsets.only(bottom: 16.h),
@@ -349,7 +334,7 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  order['id'],
+                  order.orderNumber,
                   style: TextStyle(
                     fontSize: 16.sp,
                     fontWeight: FontWeight.w600,
@@ -392,7 +377,9 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
 
             // Product info
             Text(
-              order['product_name'],
+              order.orderDetails?.isNotEmpty == true
+                  ? order.orderDetails!.first.product?.name ?? 'Produk'
+                  : 'Produk',
               style: TextStyle(
                 fontSize: 14.sp,
                 fontWeight: FontWeight.w500,
@@ -401,7 +388,7 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
             ),
             SizedBox(height: 4.h),
             Text(
-              '${order['quantity']} kg',
+              '${order.totalQuantity.toStringAsFixed(0)} kg',
               style: TextStyle(fontSize: 12.sp, color: Colors.grey[600]),
             ),
 
@@ -416,7 +403,7 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
                   style: TextStyle(fontSize: 14.sp, color: Colors.grey[700]),
                 ),
                 Text(
-                  'Rp ${order['total_price']}',
+                  order.formattedTotalAmount,
                   style: TextStyle(
                     fontSize: 16.sp,
                     fontWeight: FontWeight.w600,
@@ -479,48 +466,54 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
             SizedBox(height: 12.h),
 
             // Delivery address
-            Text(
-              'Alamat Pengiriman:',
-              style: TextStyle(fontSize: 12.sp, color: Colors.grey[600]),
-            ),
-            Text(
-              order['delivery_address'],
-              style: TextStyle(fontSize: 12.sp, fontWeight: FontWeight.w500),
-            ),
+            if (order.deliveryAddress != null) ...[
+              Text(
+                'Alamat Pengiriman:',
+                style: TextStyle(fontSize: 12.sp, color: Colors.grey[600]),
+              ),
+              Text(
+                order.deliveryAddress!,
+                style: TextStyle(fontSize: 12.sp, fontWeight: FontWeight.w500),
+              ),
+            ],
 
-            // Tracking number (if available)
-            if (order['tracking_number'] != null) ...[
+            // Tracking button for shipped orders
+            if (status == 'shipped') ...[
               SizedBox(height: 8.h),
               Row(
                 children: [
                   Text(
-                    'No. Resi: ',
-                    style: TextStyle(fontSize: 12.sp, color: Colors.grey[600]),
+                    'Status: Sedang Dikirim',
+                    style: TextStyle(
+                      fontSize: 12.sp,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                  Expanded(
-                    child: Text(
-                      order['tracking_number'],
+                  const Spacer(),
+                  TextButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              OrderTrackingScreen(orderId: order.id),
+                        ),
+                      );
+                    },
+                    icon: Icon(
+                      Icons.location_on,
+                      size: 16.sp,
+                      color: const Color(0xFF2E7D32),
+                    ),
+                    label: Text(
+                      'Lacak Pengiriman',
                       style: TextStyle(
                         fontSize: 12.sp,
-                        fontWeight: FontWeight.w500,
                         color: const Color(0xFF2E7D32),
                       ),
                     ),
                   ),
-                  if (status == 'shipped' || status == 'delivered')
-                    TextButton(
-                      onPressed: () {
-                        // Navigate to tracking screen
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Fitur tracking akan diimplementasikan',
-                            ),
-                          ),
-                        );
-                      },
-                      child: Text('Lacak', style: TextStyle(fontSize: 12.sp)),
-                    ),
                 ],
               ),
             ],
@@ -533,7 +526,7 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
               children: [
                 if (status == 'pending') ...[
                   TextButton(
-                    onPressed: () => _cancelOrder(order['id']),
+                    onPressed: () => _cancelOrder(order.id),
                     style: TextButton.styleFrom(foregroundColor: Colors.red),
                     child: Text('Batalkan', style: TextStyle(fontSize: 12.sp)),
                   ),
@@ -557,33 +550,39 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
     );
   }
 
-  void _showOrderDetails(Map<String, dynamic> order) {
+  void _showOrderDetails(Order order) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Detail Pesanan ${order['id']}'),
+        title: Text('Detail Pesanan ${order.orderNumber}'),
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildDetailRow('Produk:', order['product_name']),
-              _buildDetailRow('Jumlah:', '${order['quantity']} kg'),
-              _buildDetailRow('Total Harga:', 'Rp ${order['total_price']}'),
-              _buildDetailRow('Status:', _getStatusText(order['status'])),
+              _buildDetailRow(
+                'Produk:',
+                order.orderDetails?.isNotEmpty == true
+                    ? order.orderDetails!.first.product?.name ?? 'Produk'
+                    : 'Produk',
+              ),
+              _buildDetailRow(
+                'Jumlah:',
+                '${order.totalQuantity.toStringAsFixed(0)} kg',
+              ),
+              _buildDetailRow('Total Harga:', order.formattedTotalAmount),
+              _buildDetailRow('Status:', _getStatusText(order.status)),
               _buildDetailRow(
                 'Tanggal Pesan:',
-                DateTime.parse(order['order_date']).toString().substring(0, 16),
+                order.orderDate.toString().substring(0, 16),
               ),
-              _buildDetailRow(
-                'Pengiriman Diinginkan:',
-                DateTime.parse(
-                  order['requested_delivery'],
-                ).toString().substring(0, 10),
-              ),
-              _buildDetailRow('Alamat Pengiriman:', order['delivery_address']),
-              if (order['tracking_number'] != null)
-                _buildDetailRow('No. Resi:', order['tracking_number']),
+              if (order.deliveryDate != null)
+                _buildDetailRow(
+                  'Pengiriman Diinginkan:',
+                  order.deliveryDate!.toString().substring(0, 10),
+                ),
+              if (order.deliveryAddress != null)
+                _buildDetailRow('Alamat Pengiriman:', order.deliveryAddress!),
             ],
           ),
         ),

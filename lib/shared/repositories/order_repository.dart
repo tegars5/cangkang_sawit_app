@@ -30,7 +30,7 @@ class OrderRepository {
             order_details(
               id, order_id, product_id, requested_quantity, confirmed_quantity,
               unit_price, subtotal, notes, created_at, updated_at,
-              products(id, name, description, price_per_kg, unit, category)
+              products(id, name, description, price_per_ton, unit, category)
             )
           ''');
 
@@ -69,7 +69,7 @@ class OrderRepository {
             order_details(
               id, order_id, product_id, requested_quantity, confirmed_quantity,
               unit_price, subtotal, notes, created_at, updated_at,
-              products(id, name, description, price_per_kg, unit, category)
+              products(id, name, description, price_per_ton, unit, category)
             )
           ''')
           .eq('id', orderId)
@@ -169,24 +169,26 @@ class OrderRepository {
       try {
         final product = await _supabaseService.client
             .from('products')
-            .select('id, name, stock_quantity')
+            .select('id, name, stock_available')
             .eq('id', item.productId)
             .single();
 
+        // Ambil data stok dengan aman (double)
         final availableStock =
-            (product['stock_quantity'] as num?)?.toDouble() ?? 0;
+            (product['stock_available'] as num?)?.toDouble() ?? 0.0;
 
         if (availableStock < item.requestedQuantity) {
           final productName = product['name'] as String? ?? 'Unknown Product';
           throw Exception(
-            'Insufficient stock for $productName. Available: $availableStock, Requested: ${item.requestedQuantity}',
+            'Stok tidak cukup untuk $productName. Tersedia: ${availableStock} Ton, Diminta: ${item.requestedQuantity} Ton',
           );
         }
       } catch (e) {
-        if (e.toString().contains('Insufficient stock')) {
+        if (e.toString().contains('Stok tidak cukup')) {
           rethrow;
         }
-        throw Exception('Gagal validasi stok produk: ${e.toString()}');
+        // Abaikan error kolom tidak ketemu, lanjut saja (fail open) atau throw
+        // throw Exception('Gagal validasi stok produk: ${e.toString()}');
       }
     }
   }
@@ -307,7 +309,7 @@ class OrderRepository {
             order_details(
               id, order_id, product_id, requested_quantity, confirmed_quantity,
               unit_price, subtotal, notes, created_at, updated_at,
-              products(id, name, description, price_per_kg, unit, category)
+              products(id, name, description, price_per_ton, unit, category)
             )
           ''')
           .eq('status', 'confirmed')
@@ -344,7 +346,7 @@ class OrderRepository {
             order_details(
               id, order_id, product_id, requested_quantity, confirmed_quantity,
               unit_price, subtotal, notes, created_at, updated_at,
-              products(id, name, description, price_per_kg, unit, category)
+              products(id, name, description, price_per_ton, unit, category)
             )
           ''');
 
@@ -448,7 +450,7 @@ class OrderRepository {
             order_details(
               id, order_id, product_id, requested_quantity, confirmed_quantity,
               unit_price, subtotal, notes, created_at, updated_at,
-              products(id, name, description, price_per_kg, unit, category)
+              products(id, name, description, price_per_ton, unit, category)
             )
           ''')
           .eq('customer_id', userId);

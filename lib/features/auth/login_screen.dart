@@ -7,6 +7,8 @@ import '../../utils/test_users_helper_new.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
 import '../mitra/mitra_dashboard.dart';
+import '../admin/pages/admin_dashboard_page.dart';
+import '../driver/driver_dashboard_screen.dart';
 import 'database_debug_widget.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -106,7 +108,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         // Navigate based on role enum
         if (roleName == 'admin') {
           print('📍 Navigating to Admin Dashboard');
-          Navigator.pushReplacementNamed(context, '/admin_main');
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const AdminDashboardPage()),
+          );
         } else if (roleName == 'customer' &&
             response.user!.email?.contains('mitra') == true) {
           print('📍 Navigating to Mitra Dashboard');
@@ -116,7 +121,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           );
         } else if (roleName == 'driver') {
           print('📍 Navigating to Driver Dashboard');
-          Navigator.pushReplacementNamed(context, '/driver_main');
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const DriverDashboardScreen(),
+            ),
+          );
         } else {
           if (mounted) {
             showDialog(

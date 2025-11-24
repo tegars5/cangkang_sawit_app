@@ -11,6 +11,8 @@ import '../../shared/models/driver_location.dart';
 import '../../core/repositories/shipment_repository.dart';
 import '../../shared/models/shipment.dart';
 import '../shipment/delivery_confirmation_screen.dart';
+import '../../core/helpers/auth_helper.dart';
+import '../../debug/google_maps_test_screen.dart';
 
 class DriverDashboardScreen extends ConsumerStatefulWidget {
   const DriverDashboardScreen({super.key});
@@ -110,10 +112,9 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
             longitude: position.longitude,
             accuracy: position.accuracy,
             speed: position.speed,
-            bearing: position.heading,
+            heading: position.heading,
             timestamp: DateTime.now(),
             createdAt: DateTime.now(),
-            isActive: true,
           );
         });
       }
@@ -191,10 +192,9 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
         longitude: position.longitude,
         accuracy: position.accuracy,
         speed: position.speed,
-        bearing: position.heading,
+        heading: position.heading,
         timestamp: DateTime.now(),
         createdAt: DateTime.now(),
-        isActive: true,
       );
       _trackingError = null;
     });
@@ -208,10 +208,12 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
         driverId: _currentLocation!.driverId,
         latitude: _currentLocation!.latitude,
         longitude: _currentLocation!.longitude,
-        accuracy: _currentLocation!.accuracy,
+
         speed: _currentLocation!.speed,
         bearing: _currentLocation!.bearing,
-        shipmentId: _activeShipments.isNotEmpty ? _activeShipments[0].id : null,
+        shipmentId: _activeShipments.isNotEmpty
+            ? _activeShipments[0].id
+            : 'no-active-shipment',
       );
     } catch (e) {
       print('Error saving location: $e');
@@ -231,6 +233,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
             onPressed: _toggleLocationTracking,
             tooltip: _isTrackingLocation ? 'Stop Tracking' : 'Start Tracking',
           ),
+          AuthHelper.buildLogoutButton(context),
         ],
       ),
       body: RefreshIndicator(
@@ -577,10 +580,15 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
               () => _callSupport(),
             ),
             _buildActionCard(
-              'Navigation',
-              Icons.navigation,
+              '🗺️ Test Maps',
+              Icons.map_outlined,
               Colors.blue,
-              () => _openNavigation(),
+              () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const GoogleMapsTestScreen(),
+                ),
+              ),
             ),
           ],
         ),
@@ -890,148 +898,6 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
             ),
           );
         }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-        );
-      }
-    }
-  }
-
-  void _openNavigation() {
-    // Cek apakah ada shipment aktif
-    if (_activeShipments.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Tidak ada pengiriman aktif'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    // Get active shipment dengan destination
-    Shipment? activeShipment;
-    try {
-      activeShipment = _activeShipments.firstWhere(
-        (s) => s.status == 'picked_up',
-      );
-    } catch (e) {
-      // Jika tidak ada yang picked_up, ambil yang pertama
-      activeShipment = _activeShipments.first;
-    }
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.navigation, color: Colors.blue),
-            SizedBox(width: 8.w),
-            Text('Navigasi'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Tujuan:', style: TextStyle(fontWeight: FontWeight.bold)),
-            SizedBox(height: 8.h),
-            Text(activeShipment!.destinationAddress ?? 'Alamat tidak tersedia'),
-            SizedBox(height: 16.h),
-            Text(
-              'Pilih aplikasi navigasi:',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 12.h),
-            ListTile(
-              leading: Icon(Icons.map, color: Colors.blue),
-              title: Text('Google Maps'),
-              onTap: () {
-                Navigator.pop(context);
-                _launchGoogleMaps(activeShipment!.destinationAddress);
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.navigation, color: Colors.green),
-              title: Text('Waze'),
-              onTap: () {
-                Navigator.pop(context);
-                _launchWaze(activeShipment!.destinationAddress);
-              },
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Batal'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _launchGoogleMaps(String? address) async {
-    if (address == null || address.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Alamat tujuan tidak tersedia'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    try {
-      final encodedAddress = Uri.encodeComponent(address);
-      final Uri mapsUri = Uri.parse(
-        'https://www.google.com/maps/search/?api=1&query=$encodedAddress',
-      );
-
-      if (await canLaunchUrl(mapsUri)) {
-        await launchUrl(mapsUri, mode: LaunchMode.externalApplication);
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Tidak dapat membuka Google Maps'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-        );
-      }
-    }
-  }
-
-  Future<void> _launchWaze(String? address) async {
-    if (address == null || address.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Alamat tujuan tidak tersedia'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    try {
-      final encodedAddress = Uri.encodeComponent(address);
-      final Uri wazeUri = Uri.parse('https://waze.com/ul?q=$encodedAddress');
-
-      if (await canLaunchUrl(wazeUri)) {
-        await launchUrl(wazeUri, mode: LaunchMode.externalApplication);
-      } else {
-        // Fallback ke Google Maps jika Waze tidak tersedia
-        _launchGoogleMaps(address);
       }
     } catch (e) {
       if (mounted) {

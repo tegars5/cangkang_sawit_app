@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../widgets/common/common_widgets.dart';
+import '../../../core/helpers/auth_helper.dart';
+import '../../../debug/google_maps_test_screen.dart';
 
 /// Admin Dashboard - Welcome back, Admin
 class AdminDashboardPage extends ConsumerWidget {
@@ -28,11 +30,7 @@ class AdminDashboardPage extends ConsumerWidget {
               ),
             ),
             const Spacer(),
-            Icon(
-              Icons.person_outline,
-              color: const Color(0xFF374151),
-              size: 24.sp,
-            ),
+            AuthHelper.buildLogoutButton(context),
           ],
         ),
       ),
@@ -151,6 +149,21 @@ class AdminDashboardPage extends ConsumerWidget {
                 icon: Icons.local_shipping_outlined,
                 onPressed: () {
                   // TODO: Navigate to shipments
+                },
+              ),
+
+              SizedBox(height: 12.h),
+
+              SecondaryButton(
+                text: '🗺️ Test Google Maps',
+                icon: Icons.map_outlined,
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const GoogleMapsTestScreen(),
+                    ),
+                  );
                 },
               ),
 

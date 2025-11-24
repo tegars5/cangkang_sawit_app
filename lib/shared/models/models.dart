@@ -9,3 +9,4 @@ export 'shipment.dart';
 export 'driver_location.dart';
 export 'delivery.dart';
 export 'notification.dart';
+export 'json_helpers.dart';

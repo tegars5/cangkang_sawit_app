@@ -1,137 +1,146 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'core/services/supabase_service.dart';
-import 'core/services/app_initialization_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart'; // WAJIB: Untuk Riverpod
+import 'package:flutter_screenutil/flutter_screenutil.dart'; // WAJIB: Untuk ukuran layar
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:intl/date_symbol_data_local.dart'; // WAJIB: Untuk format tanggal Indo
+
+// Pastikan import ini sesuai dengan lokasi file Kakak
 import 'core/constants/app_constants.dart';
 import 'features/auth/login_screen.dart';
-import 'features/admin/pages/admin_main_layout.dart';
-import 'features/driver/pages/driver_main_layout.dart';
+import 'features/mitra/mitra_dashboard.dart';
+import 'features/admin/pages/admin_dashboard_page.dart'; // Sesuaikan nama file dashboard admin
+import 'features/driver/driver_dashboard_screen.dart'; // Sesuaikan nama file dashboard driver
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  try {
-    // Initialize Supabase first
-    await SupabaseService.initialize();
+  // 1. Inisialisasi Supabase
+  // Pastikan AppConstants sudah berisi URL dan AnonKey yang benar
+  await Supabase.initialize(
+    url: AppConstants.supabaseUrl,
+    anonKey: AppConstants.supabaseAnonKey,
+  );
 
-    // Initialize all app services
-    await AppInitializationService.initialize();
+  // 2. Inisialisasi Format Tanggal Indonesia (PENTING! Biar gak merah saat buka kalender)
+  await initializeDateFormatting('id_ID', null);
 
-    runApp(ProviderScope(child: const CangkangSawitApp()));
-  } catch (e) {
-    // Show error screen or handle initialization failure
-    runApp(ProviderScope(child: ErrorApp(error: e.toString())));
-  }
+  runApp(
+    // 3. Bungkus App dengan ProviderScope (PENTING! Biar Riverpod jalan)
+    const ProviderScope(child: MyApp()),
+  );
 }
 
-class CangkangSawitApp extends StatelessWidget {
-  const CangkangSawitApp({super.key});
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // 4. Bungkus dengan ScreenUtilInit agar .w dan .h berfungsi
     return ScreenUtilInit(
-      designSize: const Size(375, 812), // iPhone X size sebagai design base
+      designSize: const Size(375, 812), // Ukuran desain standar (iPhone X)
       minTextAdapt: true,
       splitScreenMode: true,
       builder: (context, child) {
         return MaterialApp(
-          title: AppConstants.appName,
+          title: 'Cangkang Sawit App',
           debugShowCheckedModeBanner: false,
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(
-              seedColor: const Color(
-                0xFF1B5E20,
-              ), // Dark green theme untuk sawit
-              brightness: Brightness.light,
+              seedColor: const Color(0xFF2E7D32), // Warna Hijau Sawit
+              primary: const Color(0xFF2E7D32),
             ),
             useMaterial3: true,
-            appBarTheme: const AppBarTheme(
-              centerTitle: true,
-              elevation: 0,
-              backgroundColor: Color(0xFF2E7D32),
-              foregroundColor: Colors.white,
-            ),
-            elevatedButtonTheme: ElevatedButtonThemeData(
-              style: ElevatedButton.styleFrom(
-                minimumSize: Size(double.infinity, 48.h),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8.r),
-                ),
-              ),
-            ),
-            inputDecorationTheme: InputDecorationTheme(
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8.r),
-              ),
-              contentPadding: EdgeInsets.symmetric(
-                horizontal: 16.w,
-                vertical: 12.h,
-              ),
-            ),
+            // Font default (opsional)
+            fontFamily: 'Roboto',
           ),
-          // Use initialRoute instead of home to enable proper navigation
-          initialRoute: '/',
-          routes: {
-            '/': (context) => const LoginScreen(),
-            '/login': (context) => const LoginScreen(),
-            '/admin_main': (context) => const AdminMainLayout(),
-            '/driver_main': (context) => const DriverMainLayout(),
-          },
-          // This ensures Navigator always has at least one route
-          navigatorObservers: [],
+          // Cek sesi login saat aplikasi dibuka
+          home: const AuthCheck(),
         );
       },
     );
   }
 }
 
-class ErrorApp extends StatelessWidget {
-  final String error;
+/// Widget untuk mengecek status login user saat aplikasi baru dibuka
+class AuthCheck extends StatefulWidget {
+  const AuthCheck({super.key});
 
-  const ErrorApp({super.key, required this.error});
+  @override
+  State<AuthCheck> createState() => _AuthCheckState();
+}
+
+class _AuthCheckState extends State<AuthCheck> {
+  @override
+  void initState() {
+    super.initState();
+    _checkSession();
+  }
+
+  Future<void> _checkSession() async {
+    try {
+      // Beri jeda sedikit agar splash screen terasa halus
+      await Future.delayed(const Duration(seconds: 2));
+
+      final session = Supabase.instance.client.auth.currentSession;
+
+      if (session == null) {
+        _navigateToLogin();
+      } else {
+        // Jika sudah login, cek role user untuk diarahkan ke dashboard yang benar
+        await _checkUserRole(session.user.id);
+      }
+    } catch (e) {
+      // Jika error, lempar ke login aja biar aman
+      _navigateToLogin();
+    }
+  }
+
+  Future<void> _checkUserRole(String userId) async {
+    try {
+      final profile = await Supabase.instance.client
+          .from('profiles')
+          .select('role')
+          .eq('id', userId)
+          .single();
+
+      final role = profile['role'] as String?;
+
+      if (mounted) {
+        if (role == 'mitra') {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const MitraDashboard()),
+          );
+        } else if (role == 'admin') {
+          // Pastikan class AdminDashboardPage ada dan di-import
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const AdminDashboardPage()),
+          );
+        } else if (role == 'driver') {
+          // Pastikan class DriverDashboard ada dan di-import
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const DriverDashboardScreen()),
+          );
+        } else {
+          _navigateToLogin();
+        }
+      }
+    } catch (e) {
+      _navigateToLogin();
+    }
+  }
+
+  void _navigateToLogin() {
+    if (mounted) {
+      Navigator.of(
+        context,
+      ).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      home: Scaffold(
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.error_outline, size: 64, color: Colors.red[400]),
-                const SizedBox(height: 20),
-                const Text(
-                  'Gagal Memulai Aplikasi',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  'Terjadi kesalahan saat menginisialisasi aplikasi:',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey[600]),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  error,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 12),
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: () {
-                    // Restart app
-                    main();
-                  },
-                  child: const Text('Coba Lagi'),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+    return const Scaffold(
+      body: Center(child: CircularProgressIndicator(color: Color(0xFF2E7D32))),
     );
   }
 }

@@ -169,6 +169,31 @@ class Shipment {
     return _formatDateTime(actualDelivery!);
   }
 
+  /// Helper method untuk mendapatkan alamat tujuan dari order
+  String get destinationAddress =>
+      order?.deliveryAddress ?? 'Alamat tidak tersedia';
+
+  /// Helper method untuk mendapatkan tanggal pickup dari order
+  DateTime? get pickupDate => order?.pickupDate;
+
+  /// Helper method untuk format tanggal pickup
+  String get formattedPickupDate {
+    if (pickupDate == null) return '-';
+    return _formatDateTime(pickupDate!);
+  }
+
+  /// Helper method untuk mendapatkan tanggal delivery dari order
+  DateTime? get deliveryDate => order?.deliveryDate;
+
+  /// Helper method untuk format tanggal delivery
+  String get formattedDeliveryDate {
+    if (deliveryDate == null) return '-';
+    return _formatDateTime(deliveryDate!);
+  }
+
+  /// Helper method untuk mendapatkan catatan dari order
+  String? get notes => order?.notes;
+
   String _formatDateTime(DateTime dateTime) {
     final months = [
       'Jan',

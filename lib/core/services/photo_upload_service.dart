@@ -72,7 +72,7 @@ class PhotoUploadService {
   static String _generatePhotoPath(String shipmentId, String originalFileName) {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final extension = path.extension(originalFileName).toLowerCase();
-    return 'shipments/$shipmentId/delivery_${timestamp}$extension';
+    return 'shipments/$shipmentId/delivery_$timestamp$extension';
   }
 
   // Upload delivery photo
@@ -92,7 +92,7 @@ class PhotoUploadService {
       // Check file size
       final fileSize = await file.length();
       if (fileSize > _maxFileSize) {
-        log('File too large, compressing: ${fileSize} bytes');
+        log('File too large, compressing: $fileSize bytes');
       }
 
       // Compress image if needed

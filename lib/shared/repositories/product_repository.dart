@@ -8,14 +8,15 @@ class ProductRepository {
   /// Get semua produk yang aktif
   Future<List<Product>> getAllProducts() async {
     try {
-      // DB columns: id, nama_produk, harga, satuan, is_active
       final response = await _supabaseService.client
           .from('products')
-          .select(
-            'id, nama_produk, harga, satuan, is_active, created_at, updated_at',
-          )
+          .select('''
+            id, name, description, price_per_ton, unit,
+            stock_available, minimum_order, category, product_code,
+            specifications, is_active, created_at, updated_at
+          ''')
           .eq('is_active', true)
-          .order('nama_produk');
+          .order('name'); // Sort by name
 
       return (response as List)
           .map((product) => Product.fromJson(product))
@@ -30,9 +31,11 @@ class ProductRepository {
     try {
       final response = await _supabaseService.client
           .from('products')
-          .select(
-            'id, nama_produk, harga, satuan, is_active, created_at, updated_at',
-          )
+          .select('''
+            id, name, description, price_per_ton, unit,
+            stock_available, minimum_order, category, product_code,
+            specifications, is_active, created_at, updated_at
+          ''')
           .eq('id', productId)
           .single();
 
@@ -45,17 +48,22 @@ class ProductRepository {
   /// Create produk baru (Admin only)
   Future<Product> createProduct({
     required String name,
-    required double price,
+    required double pricePerTon,
     required String unit,
   }) async {
     try {
-      // DB columns: nama_produk, harga, satuan
+      // FIXED: Sesuaikan nama kolom dengan database (name, price_per_ton, unit)
       final response = await _supabaseService.client
           .from('products')
-          .insert({'nama_produk': name, 'harga': price, 'satuan': unit})
-          .select(
-            'id, nama_produk, harga, satuan, is_active, created_at, updated_at',
-          )
+          .insert({
+            'name': name, 
+            'price_per_ton': pricePerTon, 
+            'unit': unit,
+            'stock_available': 0, // Default stock
+            'category': 'Palm Shell', // Default category
+            'is_active': true
+          })
+          .select()
           .single();
 
       return Product.fromJson(response);
@@ -68,23 +76,22 @@ class ProductRepository {
   Future<Product> updateProduct({
     required String productId,
     required String name,
-    required double price,
+    required double pricePerTon,
     required String unit,
     bool? isActive,
   }) async {
     try {
+      // FIXED: Gunakan nama kolom bahasa Inggris
       final response = await _supabaseService.client
           .from('products')
           .update({
-            'nama_produk': name,
-            'harga': price,
-            'satuan': unit,
+            'name': name,
+            'price_per_ton': pricePerTon,
+            'unit': unit,
             if (isActive != null) 'is_active': isActive,
           })
           .eq('id', productId)
-          .select(
-            'id, nama_produk, harga, satuan, is_active, created_at, updated_at',
-          )
+          .select()
           .single();
 
       return Product.fromJson(response);
@@ -110,12 +117,10 @@ class ProductRepository {
     try {
       final response = await _supabaseService.client
           .from('products')
-          .select(
-            'id, nama_produk, harga, satuan, is_active, created_at, updated_at',
-          )
+          .select()
           .eq('is_active', true)
-          .ilike('nama_produk', '%$query%')
-          .order('nama_produk');
+          .ilike('name', '%$query%') // FIXED: search column 'name'
+          .order('name');
 
       return (response as List)
           .map((product) => Product.fromJson(product))

@@ -33,17 +33,17 @@ class DriverLocation {
       id: json['id'] as String,
       driverId: json['driver_id'] as String,
       shipmentId: json['shipment_id'] as String?,
-      latitude: (json['latitude'] as num).toDouble(),
-      longitude: (json['longitude'] as num).toDouble(),
+      latitude: (json['latitude'] as num?)?.toDouble() ?? 0.0,
+      longitude: (json['longitude'] as num?)?.toDouble() ?? 0.0,
       accuracy: json['accuracy'] != null
-          ? (json['accuracy'] as num).toDouble()
+          ? (json['accuracy'] as num?)?.toDouble()
           : null,
       altitude: json['altitude'] != null
-          ? (json['altitude'] as num).toDouble()
+          ? (json['altitude'] as num?)?.toDouble()
           : null,
-      speed: json['speed'] != null ? (json['speed'] as num).toDouble() : null,
+      speed: json['speed'] != null ? (json['speed'] as num?)?.toDouble() : null,
       heading: json['heading'] != null
-          ? (json['heading'] as num).toDouble()
+          ? (json['heading'] as num?)?.toDouble()
           : null,
       timestamp: DateTime.parse(json['timestamp'] as String),
       createdAt: DateTime.parse(json['created_at'] as String),
@@ -136,6 +136,9 @@ class DriverLocation {
     final index = ((heading! + 22.5) / 45).floor() % 8;
     return directions[index];
   }
+
+  /// Alias untuk heading - untuk kompatibilitas dengan driver dashboard
+  double? get bearing => heading;
 
   /// Helper method untuk format altitude
   String get formattedAltitude {

@@ -52,7 +52,7 @@ class AdminDashboardService {
           'created_at': DateTime.now()
               .subtract(Duration(hours: 2))
               .toIso8601String(),
-          'products': {'name': 'Cangkang Sawit Premium', 'price_per_kg': 1500},
+          'products': {'name': 'Cangkang Sawit Premium', 'price_per_ton': 1500},
           'profiles': {
             'full_name': 'PT. Mitra Sejahtera',
             'roles': {'name': 'mitra bisnis'},
@@ -66,7 +66,10 @@ class AdminDashboardService {
           'created_at': DateTime.now()
               .subtract(Duration(hours: 5))
               .toIso8601String(),
-          'products': {'name': 'Cangkang Sawit Standard', 'price_per_kg': 1400},
+          'products': {
+            'name': 'Cangkang Sawit Standard',
+            'price_per_ton': 1400,
+          },
           'profiles': {
             'full_name': 'CV. Berkah Jaya',
             'roles': {'name': 'mitra bisnis'},
@@ -80,7 +83,7 @@ class AdminDashboardService {
           'created_at': DateTime.now()
               .subtract(Duration(days: 1))
               .toIso8601String(),
-          'products': {'name': 'Cangkang Sawit Premium', 'price_per_kg': 1400},
+          'products': {'name': 'Cangkang Sawit Premium', 'price_per_ton': 1400},
           'profiles': {
             'full_name': 'PT. Sumber Rezeki',
             'roles': {'name': 'mitra bisnis'},
@@ -159,7 +162,7 @@ class AdminDashboardService {
           'id': 'prod-1',
           'name': 'Cangkang Sawit Premium',
           'description': 'Cangkang sawit kualitas premium untuk biomass energy',
-          'price_per_kg': 1500,
+          'price_per_ton': 1500,
           'stock': 5000,
           'created_at': DateTime.now()
               .subtract(Duration(days: 60))
@@ -169,7 +172,7 @@ class AdminDashboardService {
           'id': 'prod-2',
           'name': 'Cangkang Sawit Standard',
           'description': 'Cangkang sawit kualitas standard untuk industri',
-          'price_per_kg': 1400,
+          'price_per_ton': 1400,
           'stock': 8000,
           'created_at': DateTime.now()
               .subtract(Duration(days: 45))
@@ -179,7 +182,7 @@ class AdminDashboardService {
           'id': 'prod-3',
           'name': 'Cangkang Sawit Ekonomis',
           'description': 'Cangkang sawit grade ekonomis untuk bahan bakar',
-          'price_per_kg': 1200,
+          'price_per_ton': 1200,
           'stock': 12000,
           'created_at': DateTime.now()
               .subtract(Duration(days: 30))
@@ -197,7 +200,7 @@ class AdminDashboardService {
   static Future<Map<String, dynamic>> addProduct({
     required String name,
     required String description,
-    required double pricePerKg,
+    required double pricePerTon,
     required int stock,
   }) async {
     try {
@@ -218,7 +221,7 @@ class AdminDashboardService {
     required String productId,
     required String name,
     required String description,
-    required double pricePerKg,
+    required double pricePerTon,
     required int stock,
   }) async {
     try {

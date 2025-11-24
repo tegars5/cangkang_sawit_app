@@ -50,6 +50,19 @@ class _ProductCatalogScreenState extends ConsumerState<ProductCatalogScreen> {
     }
   }
 
+  // Helper function untuk ambil stok dengan aman (Double/Ton)
+  double _getStock(Map<String, dynamic> product) {
+    // Cek berbagai kemungkinan key biar aman
+    if (product['stock_available'] != null) {
+      return (product['stock_available'] as num).toDouble();
+    }
+    // Backward compatibility kalau masih ada yang kirim 'stock'
+    if (product['stock'] != null) {
+      return (product['stock'] as num).toDouble();
+    }
+    return 0.0;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -184,7 +197,13 @@ class _ProductCatalogScreenState extends ConsumerState<ProductCatalogScreen> {
   }
 
   Widget _buildProductCard(Map<String, dynamic> product) {
-    final specifications = product['specifications'] as Map<String, dynamic>;
+    // Safety check untuk specifications (biar gak crash kalau null)
+    final specifications = product['specifications'] is Map
+        ? product['specifications'] as Map<String, dynamic>
+        : <String, dynamic>{};
+
+    // Ambil stok pakai helper function
+    final stock = _getStock(product);
 
     return Card(
       margin: EdgeInsets.only(bottom: 16.h),
@@ -217,7 +236,7 @@ class _ProductCatalogScreenState extends ConsumerState<ProductCatalogScreen> {
                       Icon(Icons.eco, size: 48.sp, color: Colors.white),
                       SizedBox(height: 8.h),
                       Text(
-                        product['name'],
+                        product['name'] ?? 'Nama Produk',
                         style: TextStyle(
                           fontSize: 16.sp,
                           fontWeight: FontWeight.bold,
@@ -238,15 +257,15 @@ class _ProductCatalogScreenState extends ConsumerState<ProductCatalogScreen> {
                       vertical: 4.h,
                     ),
                     decoration: BoxDecoration(
-                      color: product['stock'] > 1000
+                      color: stock > 100.0
                           ? Colors.green
-                          : product['stock'] > 100
-                          ? Colors.orange
+                          : stock > 10.0
+                          ? Colors.amber
                           : Colors.red,
                       borderRadius: BorderRadius.circular(12.r),
                     ),
                     child: Text(
-                      '${product['stock']} kg',
+                      '${stock.toStringAsFixed(1)} ton',
                       style: TextStyle(
                         fontSize: 10.sp,
                         fontWeight: FontWeight.w500,
@@ -266,7 +285,7 @@ class _ProductCatalogScreenState extends ConsumerState<ProductCatalogScreen> {
               children: [
                 // Description
                 Text(
-                  product['description'],
+                  product['description'] ?? '-',
                   style: TextStyle(
                     fontSize: 12.sp,
                     color: Colors.grey[700],
@@ -281,14 +300,15 @@ class _ProductCatalogScreenState extends ConsumerState<ProductCatalogScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Harga per kg:',
+                      'Harga per ton:',
                       style: TextStyle(
                         fontSize: 14.sp,
                         color: Colors.grey[600],
                       ),
                     ),
                     Text(
-                      'Rp ${product['price_per_kg']}',
+                      // Pastikan price_per_ton diambil dengan aman
+                      'Rp ${(product['price_per_ton'] ?? 0).toString()}',
                       style: TextStyle(
                         fontSize: 20.sp,
                         fontWeight: FontWeight.bold,
@@ -301,74 +321,79 @@ class _ProductCatalogScreenState extends ConsumerState<ProductCatalogScreen> {
                 SizedBox(height: 16.h),
 
                 // Specifications
-                Text(
-                  'Spesifikasi Produk:',
-                  style: TextStyle(
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
+                if (specifications.isNotEmpty) ...[
+                  Text(
+                    'Spesifikasi Produk:',
+                    style: TextStyle(
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
                   ),
-                ),
-                SizedBox(height: 8.h),
-                Container(
-                  padding: EdgeInsets.all(12.w),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[50],
-                    borderRadius: BorderRadius.circular(8.r),
-                    border: Border.all(color: Colors.grey[200]!),
+                  SizedBox(height: 8.h),
+                  Container(
+                    padding: EdgeInsets.all(12.w),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(8.r),
+                      border: Border.all(color: Colors.grey[200]!),
+                    ),
+                    child: Column(
+                      children: [
+                        if (specifications['moisture_content'] != null)
+                          _buildSpecRow(
+                            'Kadar Air:',
+                            specifications['moisture_content'],
+                          ),
+                        if (specifications['calorific_value'] != null)
+                          _buildSpecRow(
+                            'Nilai Kalor:',
+                            specifications['calorific_value'],
+                          ),
+                        if (specifications['ash_content'] != null)
+                          _buildSpecRow(
+                            'Kadar Abu:',
+                            specifications['ash_content'],
+                          ),
+                        if (specifications['size'] != null)
+                          _buildSpecRow('Ukuran:', specifications['size']),
+                      ],
+                    ),
                   ),
-                  child: Column(
-                    children: [
-                      _buildSpecRow(
-                        'Kadar Air:',
-                        specifications['moisture_content'],
-                      ),
-                      _buildSpecRow(
-                        'Nilai Kalor:',
-                        specifications['calorific_value'],
-                      ),
-                      _buildSpecRow(
-                        'Kadar Abu:',
-                        specifications['ash_content'],
-                      ),
-                      _buildSpecRow('Ukuran:', specifications['size']),
-                    ],
-                  ),
-                ),
-
-                SizedBox(height: 16.h),
+                  SizedBox(height: 16.h),
+                ],
 
                 // Stock info
                 Row(
                   children: [
                     Icon(
-                      product['stock'] > 1000
+                      stock > 100.0
                           ? Icons.check_circle
-                          : product['stock'] > 100
+                          : stock > 10.0
                           ? Icons.warning
                           : Icons.error,
                       size: 16.sp,
-                      color: product['stock'] > 1000
+                      color: stock > 100.0
                           ? Colors.green
-                          : product['stock'] > 100
+                          : stock > 10.0
                           ? Colors.orange
                           : Colors.red,
                     ),
                     SizedBox(width: 8.w),
                     Expanded(
                       child: Text(
-                        product['stock'] > 1000
-                            ? 'Stok melimpah (${product['stock']} kg)'
-                            : product['stock'] > 100
-                            ? 'Stok terbatas (${product['stock']} kg)'
-                            : 'Stok hampir habis (${product['stock']} kg)',
+                        stock > 100.0
+                            ? 'Stok melimpah (${stock.toStringAsFixed(1)} ton)'
+                            : stock > 10.0
+                            ? 'Stok terbatas (${stock.toStringAsFixed(1)} ton)'
+                            : 'Stok hampir habis (${stock.toStringAsFixed(1)} ton)',
                         style: TextStyle(
                           fontSize: 12.sp,
-                          color: product['stock'] > 1000
-                              ? Colors.green[700]
-                              : product['stock'] > 100
-                              ? Colors.orange[700]
-                              : Colors.red[700],
+                          color: stock > 100.0
+                              ? Colors.green[600]
+                              : stock > 10.0
+                              ? Colors.amber[600]
+                              : Colors.red[600],
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -401,7 +426,8 @@ class _ProductCatalogScreenState extends ConsumerState<ProductCatalogScreen> {
                     Expanded(
                       flex: 2,
                       child: ElevatedButton.icon(
-                        onPressed: product['stock'] > 0
+                        // Cek stok pakai variabel stock yang aman
+                        onPressed: stock > 0
                             ? () => _orderProduct(product)
                             : null,
                         icon: Icon(Icons.add_shopping_cart, size: 16.sp),
@@ -455,7 +481,11 @@ class _ProductCatalogScreenState extends ConsumerState<ProductCatalogScreen> {
   }
 
   void _showProductDetails(Map<String, dynamic> product) {
-    final specifications = product['specifications'] as Map<String, dynamic>;
+    final specifications = product['specifications'] is Map
+        ? product['specifications'] as Map<String, dynamic>
+        : <String, dynamic>{};
+
+    final stock = _getStock(product);
 
     showDialog(
       context: context,
@@ -476,7 +506,7 @@ class _ProductCatalogScreenState extends ConsumerState<ProductCatalogScreen> {
                   SizedBox(width: 12.w),
                   Expanded(
                     child: Text(
-                      product['name'],
+                      product['name'] ?? 'Detail Produk',
                       style: TextStyle(
                         fontSize: 18.sp,
                         fontWeight: FontWeight.bold,
@@ -502,7 +532,7 @@ class _ProductCatalogScreenState extends ConsumerState<ProductCatalogScreen> {
               ),
               SizedBox(height: 8.h),
               Text(
-                product['description'],
+                product['description'] ?? '-',
                 style: TextStyle(
                   fontSize: 13.sp,
                   color: Colors.grey[700],
@@ -527,14 +557,14 @@ class _ProductCatalogScreenState extends ConsumerState<ProductCatalogScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Harga per kg:',
+                          'Harga per ton:',
                           style: TextStyle(
                             fontSize: 12.sp,
                             color: Colors.grey[600],
                           ),
                         ),
                         Text(
-                          'Rp ${product['price_per_kg']}',
+                          'Rp ${(product['price_per_ton'] ?? 0).toString()}',
                           style: TextStyle(
                             fontSize: 16.sp,
                             fontWeight: FontWeight.bold,
@@ -554,7 +584,7 @@ class _ProductCatalogScreenState extends ConsumerState<ProductCatalogScreen> {
                           ),
                         ),
                         Text(
-                          '${product['stock']} kg',
+                          '${stock.toStringAsFixed(1)} ton',
                           style: TextStyle(
                             fontSize: 16.sp,
                             fontWeight: FontWeight.bold,
@@ -570,47 +600,55 @@ class _ProductCatalogScreenState extends ConsumerState<ProductCatalogScreen> {
               SizedBox(height: 16.h),
 
               // Detailed specifications
-              Text(
-                'Spesifikasi Teknis:',
-                style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w600),
-              ),
-              SizedBox(height: 8.h),
-              Container(
-                padding: EdgeInsets.all(12.w),
-                decoration: BoxDecoration(
-                  color: Colors.grey[50],
-                  borderRadius: BorderRadius.circular(8.r),
-                  border: Border.all(color: Colors.grey[200]!),
+              if (specifications.isNotEmpty) ...[
+                Text(
+                  'Spesifikasi Teknis:',
+                  style: TextStyle(
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-                child: Column(
-                  children: [
-                    _buildDetailRow(
-                      'Kadar Air (Moisture Content):',
-                      specifications['moisture_content'],
-                    ),
-                    _buildDetailRow(
-                      'Nilai Kalor (Calorific Value):',
-                      specifications['calorific_value'],
-                    ),
-                    _buildDetailRow(
-                      'Kadar Abu (Ash Content):',
-                      specifications['ash_content'],
-                    ),
-                    _buildDetailRow(
-                      'Ukuran Partikel (Size):',
-                      specifications['size'],
-                    ),
-                  ],
+                SizedBox(height: 8.h),
+                Container(
+                  padding: EdgeInsets.all(12.w),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(8.r),
+                    border: Border.all(color: Colors.grey[200]!),
+                  ),
+                  child: Column(
+                    children: [
+                      if (specifications['moisture_content'] != null)
+                        _buildDetailRow(
+                          'Kadar Air (Moisture Content):',
+                          specifications['moisture_content'],
+                        ),
+                      if (specifications['calorific_value'] != null)
+                        _buildDetailRow(
+                          'Nilai Kalor (Calorific Value):',
+                          specifications['calorific_value'],
+                        ),
+                      if (specifications['ash_content'] != null)
+                        _buildDetailRow(
+                          'Kadar Abu (Ash Content):',
+                          specifications['ash_content'],
+                        ),
+                      if (specifications['size'] != null)
+                        _buildDetailRow(
+                          'Ukuran Partikel (Size):',
+                          specifications['size'],
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-
-              SizedBox(height: 20.h),
+                SizedBox(height: 20.h),
+              ],
 
               // Action button
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: product['stock'] > 0
+                  onPressed: stock > 0
                       ? () {
                           Navigator.of(context).pop();
                           _orderProduct(product);
@@ -618,7 +656,7 @@ class _ProductCatalogScreenState extends ConsumerState<ProductCatalogScreen> {
                       : null,
                   icon: Icon(Icons.add_shopping_cart, size: 16.sp),
                   label: Text(
-                    product['stock'] > 0 ? 'Pesan Produk Ini' : 'Stok Habis',
+                    stock > 0 ? 'Pesan Produk Ini' : 'Stok Habis',
                     style: TextStyle(
                       fontSize: 14.sp,
                       fontWeight: FontWeight.w600,
@@ -672,7 +710,12 @@ class _ProductCatalogScreenState extends ConsumerState<ProductCatalogScreen> {
   void _orderProduct(Map<String, dynamic> product) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const CreateOrderScreen()),
+      MaterialPageRoute(
+        // Kirim product map ke CreateOrderScreen
+        // Pastikan CreateOrderScreen sudah diupdate untuk handle map ini
+        builder: (context) => const CreateOrderScreen(),
+        settings: RouteSettings(arguments: product),
+      ),
     );
   }
 }

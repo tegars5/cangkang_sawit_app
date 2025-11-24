@@ -50,7 +50,7 @@ class UserProfile {
       id: json['id'] as String,
       email: json['email'] as String,
       fullName: json['full_name'] as String?,
-      roleId: json['role_id'] as int?,
+      roleId: (json['role_id'] as num?)?.toInt(),
       phone: json['phone'] as String?,
       address: json['address'] as String?,
       isActive: json['is_active'] as bool? ?? true,
@@ -104,6 +104,9 @@ class UserProfile {
 
   /// Helper method untuk mengecek apakah user adalah mitra bisnis
   bool get isMitra => role == 'mitra' || roleId == 2;
+
+  /// Alias untuk isMitra untuk kompatibilitas
+  bool get isMitraBisnis => isMitra;
 
   /// Helper method untuk mengecek apakah user adalah driver
   bool get isDriver => role == 'driver' || roleId == 3;

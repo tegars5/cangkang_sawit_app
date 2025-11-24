@@ -5,7 +5,6 @@ import '../../services/mitra_service.dart';
 import 'create_order_screen.dart';
 import 'order_history_screen.dart';
 import 'product_catalog_screen.dart';
-import 'order_tracking_screen.dart';
 
 class MitraDashboard extends ConsumerStatefulWidget {
   const MitraDashboard({super.key});
@@ -243,7 +242,7 @@ class _MitraDashboardState extends ConsumerState<MitraDashboard> {
                                 context,
                                 MaterialPageRoute(
                                   builder: (context) =>
-                                      const OrderTrackingScreen(),
+                                      const OrderHistoryScreen(),
                                 ),
                               );
                             },

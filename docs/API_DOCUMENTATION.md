@@ -145,7 +145,7 @@ Content-Type: application/json
 {
   "name": "Cangkang Kelapa Sawit Premium",
   "description": "Kualitas terbaik",
-  "price_per_kg": 1500.00,
+  "price_per_ton": 1500.00,
   "unit": "kg",
   "is_active": true
 }
@@ -158,7 +158,7 @@ PATCH /rest/v1/products?id=eq.<product_id>
 Content-Type: application/json
 
 {
-  "price_per_kg": 1600.00,
+  "price_per_ton": 1600.00,
   "is_active": false
 }
 ```
@@ -214,7 +214,7 @@ Content-Type: application/json
   "order_id": "<order_uuid>",
   "product_id": "<product_uuid>",
   "quantity": 1000,
-  "price_per_kg": 1500.00
+  "price_per_ton": 1500.00
 }
 ```
 
@@ -445,7 +445,7 @@ Currency values are stored as `DECIMAL(10,2)`:
 
 ```json
 {
-  "price_per_kg": 1500.0
+  "price_per_ton": 1500.0
 }
 ```
 

@@ -108,7 +108,7 @@ CREATE TABLE public.products (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   name character varying NOT NULL,
   description text,
-  price_per_kg numeric NOT NULL,
+  price_per_ton numeric NOT NULL,
   unit character varying DEFAULT 'ton'::character varying,
   stock_available numeric DEFAULT 0,
   minimum_order numeric DEFAULT 1,
@@ -118,7 +118,6 @@ CREATE TABLE public.products (
   is_active boolean DEFAULT true,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
-  stock_quantity integer DEFAULT 0,
   min_order_quantity integer DEFAULT 1,
   CONSTRAINT products_pkey PRIMARY KEY (id)
 );

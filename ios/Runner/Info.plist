@@ -45,5 +45,17 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	
+	<!-- Location Permissions -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Aplikasi ini membutuhkan akses lokasi untuk melacak pengiriman cangkang sawit</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Aplikasi ini membutuhkan akses lokasi untuk melacak pengiriman cangkang sawit secara real-time</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Aplikasi ini membutuhkan akses lokasi untuk melacak pengiriman cangkang sawit secara real-time</string>
+	
+	<!-- Google Maps API Key -->
+	<key>GMSApiKey</key>
+	<string>AIzaSyCQGOdJaoxRv0vV5IPz6Oh9v-X1Snk3LP8</string>
 </dict>
 </plist>

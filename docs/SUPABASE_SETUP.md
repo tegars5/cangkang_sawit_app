@@ -122,7 +122,7 @@ INSERT INTO roles (id, name, description) VALUES
 ### 6.2 Data Products
 
 ```sql
-INSERT INTO products (name, description, price_per_kg, unit) VALUES
+INSERT INTO products (name, description, price_per_ton, unit) VALUES
 ('Cangkang Kelapa Sawit Grade A', 'Cangkang kelapa sawit kualitas premium', 1500.00, 'kg'),
 ('Cangkang Kelapa Sawit Grade B', 'Cangkang kelapa sawit kualitas standar', 1200.00, 'kg'),
 ('Cangkang Kelapa Sawit Grade C', 'Cangkang kelapa sawit kualitas ekonomis', 1000.00, 'kg');

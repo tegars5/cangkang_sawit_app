@@ -1,285 +1,128 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'dart:async';
 import 'dart:developer';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../shared/models/shipment.dart';
-import '../../core/repositories/shipment_repository.dart';
+import '../../shared/repositories/shipment_repository.dart';
 
-// Providers for shipment management
+// Repository provider
+final shipmentRepositoryProvider = Provider<ShipmentRepository>((ref) {
+  return ShipmentRepository();
+});
 
-// Current driver shipments
-final driverShipmentsProvider =
-    StateNotifierProvider<DriverShipmentsNotifier, AsyncValue<List<Shipment>>>((
-      ref,
-    ) {
-      return DriverShipmentsNotifier();
-    });
+// Photo upload state
+class PhotoUploadState {
+  final bool isUploading;
+  final String? error;
+  final String? url;
 
-// Active shipments (assigned + picked_up)
-final activeShipmentsProvider = Provider<List<Shipment>>((ref) {
-  final shipments = ref.watch(driverShipmentsProvider);
-  return shipments.maybeWhen(
-    data: (data) => data
-        .where((s) => s.status == 'assigned' || s.status == 'picked_up')
-        .toList(),
-    orElse: () => [],
+  const PhotoUploadState({this.isUploading = false, this.error, this.url});
+
+  PhotoUploadState copyWith({bool? isUploading, String? error, String? url}) {
+    return PhotoUploadState(
+      isUploading: isUploading ?? this.isUploading,
+      error: error ?? this.error,
+      url: url ?? this.url,
+    );
+  }
+}
+
+// Simple future providers untuk shipments
+final driverShipmentsProvider = FutureProvider<List<Shipment>>((ref) async {
+  ref.watch(shipmentRepositoryProvider);
+  final currentUser = Supabase.instance.client.auth.currentUser;
+
+  if (currentUser == null) {
+    throw Exception('User not authenticated');
+  }
+
+  // For now, return empty list until repository method is implemented
+  return <Shipment>[];
+});
+
+// Active shipments provider
+final activeShipmentsProvider = Provider<AsyncValue<List<Shipment>>>((ref) {
+  final shipmentsAsyncValue = ref.watch(driverShipmentsProvider);
+
+  return shipmentsAsyncValue.when(
+    data: (shipments) {
+      final activeShipments = shipments
+          .where((s) => s.status == 'pending' || s.status == 'in_transit')
+          .toList();
+      return AsyncValue.data(activeShipments);
+    },
+    loading: () => const AsyncValue.loading(),
+    error: (error, stack) => AsyncValue.error(error, stack),
   );
 });
 
-// Shipment statistics
-final shipmentStatsProvider =
-    StateNotifierProvider<ShipmentStatsNotifier, AsyncValue<Map<String, int>>>((
-      ref,
-    ) {
-      return ShipmentStatsNotifier();
-    });
+// Shipment stats provider
+final shipmentStatsProvider = FutureProvider<Map<String, int>>((ref) async {
+  ref.watch(shipmentRepositoryProvider);
+  final currentUser = Supabase.instance.client.auth.currentUser;
 
-class DriverShipmentsNotifier
-    extends StateNotifier<AsyncValue<List<Shipment>>> {
-  DriverShipmentsNotifier() : super(const AsyncValue.loading()) {
-    _initialize();
+  if (currentUser == null) {
+    return {'total': 0, 'pending': 0, 'in_transit': 0, 'completed': 0};
   }
 
-  StreamSubscription<List<Shipment>>? _subscription;
-  String? _currentDriverId;
-
-  void _initialize() {
-    // TODO: Get actual driver ID from authentication
-    _currentDriverId = 'driver_001';
-    _setupRealtimeSubscription();
-    loadShipments();
+  try {
+    // For now, return default stats until repository method is implemented
+    return {'total': 0, 'pending': 0, 'in_transit': 0, 'completed': 0};
+  } catch (e) {
+    log('Error loading shipment stats: $e');
+    return {'total': 0, 'pending': 0, 'in_transit': 0, 'completed': 0};
   }
-
-  void _setupRealtimeSubscription() {
-    _subscription = ShipmentRepository.shipmentsStream.listen(
-      (allShipments) {
-        if (_currentDriverId != null) {
-          final driverShipments = allShipments
-              .where((s) => s.driverId == _currentDriverId)
-              .toList();
-          state = AsyncValue.data(driverShipments);
-          log('Updated driver shipments: ${driverShipments.length}');
-        }
-      },
-      onError: (error, stackTrace) {
-        log(
-          'Error in shipments stream: $error',
-          error: error,
-          stackTrace: stackTrace,
-        );
-        state = AsyncValue.error(error, stackTrace);
-      },
-    );
-  }
-
-  Future<void> loadShipments() async {
-    if (_currentDriverId == null) return;
-
-    try {
-      state = const AsyncValue.loading();
-      final shipments = await ShipmentRepository.getDriverShipments(
-        _currentDriverId!,
-      );
-      state = AsyncValue.data(shipments);
-    } catch (e, stackTrace) {
-      log(
-        'Error loading driver shipments: $e',
-        error: e,
-        stackTrace: stackTrace,
-      );
-      state = AsyncValue.error(e, stackTrace);
-    }
-  }
-
-  Future<void> startShipment(String shipmentId) async {
-    try {
-      await ShipmentRepository.startShipment(shipmentId);
-      log('Started shipment: $shipmentId');
-      // State will be updated via real-time subscription
-    } catch (e, stackTrace) {
-      log('Error starting shipment: $e', error: e, stackTrace: stackTrace);
-      rethrow;
-    }
-  }
-
-  Future<void> completeShipment(
-    String shipmentId,
-    String deliveryPhotoUrl,
-  ) async {
-    try {
-      await ShipmentRepository.completeShipment(shipmentId, deliveryPhotoUrl);
-      log('Completed shipment: $shipmentId');
-      // State will be updated via real-time subscription
-    } catch (e, stackTrace) {
-      log('Error completing shipment: $e', error: e, stackTrace: stackTrace);
-      rethrow;
-    }
-  }
-
-  Future<void> cancelShipment(String shipmentId, {String? reason}) async {
-    try {
-      await ShipmentRepository.cancelShipment(shipmentId, reason: reason);
-      log('Cancelled shipment: $shipmentId');
-      // State will be updated via real-time subscription
-    } catch (e, stackTrace) {
-      log('Error cancelling shipment: $e', error: e, stackTrace: stackTrace);
-      rethrow;
-    }
-  }
-
-  void setDriverId(String driverId) {
-    _currentDriverId = driverId;
-    loadShipments();
-  }
-
-  @override
-  void dispose() {
-    _subscription?.cancel();
-    super.dispose();
-  }
-}
-
-class ShipmentStatsNotifier
-    extends StateNotifier<AsyncValue<Map<String, int>>> {
-  ShipmentStatsNotifier() : super(const AsyncValue.loading()) {
-    loadStats();
-  }
-
-  String? _currentDriverId = 'driver_001'; // TODO: Get from auth
-
-  Future<void> loadStats() async {
-    if (_currentDriverId == null) return;
-
-    try {
-      state = const AsyncValue.loading();
-      final stats = await ShipmentRepository.getShipmentStatistics(
-        driverId: _currentDriverId,
-      );
-      state = AsyncValue.data(stats);
-    } catch (e, stackTrace) {
-      log('Error loading shipment stats: $e', error: e, stackTrace: stackTrace);
-      state = AsyncValue.error(e, stackTrace);
-    }
-  }
-
-  Future<void> refresh() => loadStats();
-
-  void setDriverId(String driverId) {
-    _currentDriverId = driverId;
-    loadStats();
-  }
-}
+});
 
 // Individual shipment provider
-final shipmentProvider =
-    StateNotifierProvider.family<
-      ShipmentNotifier,
-      AsyncValue<Shipment?>,
-      String
-    >((ref, shipmentId) {
-      return ShipmentNotifier(shipmentId);
-    });
+final shipmentProvider = FutureProvider.family<Shipment?, String>((
+  ref,
+  shipmentId,
+) async {
+  ref.watch(shipmentRepositoryProvider);
+  // For now, return null until repository method is implemented
+  return null;
+});
 
-class ShipmentNotifier extends StateNotifier<AsyncValue<Shipment?>> {
-  ShipmentNotifier(this.shipmentId) : super(const AsyncValue.loading()) {
-    _loadShipment();
-    _setupSubscription();
-  }
+// Photo upload notifier
+class PhotoUploadNotifier extends Notifier<PhotoUploadState> {
+  @override
+  PhotoUploadState build() => const PhotoUploadState();
 
-  final String shipmentId;
-  StreamSubscription<Shipment>? _subscription;
+  Future<String?> uploadPhoto(XFile photo) async {
+    state = state.copyWith(isUploading: true, error: null);
 
-  void _setupSubscription() {
-    _subscription = ShipmentRepository.shipmentUpdatesStream
-        .where((shipment) => shipment.id == shipmentId)
-        .listen(
-          (shipment) {
-            state = AsyncValue.data(shipment);
-          },
-          onError: (error, stackTrace) {
-            state = AsyncValue.error(error, stackTrace);
-          },
-        );
-  }
-
-  Future<void> _loadShipment() async {
     try {
-      state = const AsyncValue.loading();
-      final shipment = await ShipmentRepository.getShipmentById(shipmentId);
-      state = AsyncValue.data(shipment);
-    } catch (e, stackTrace) {
-      log('Error loading shipment: $e', error: e, stackTrace: stackTrace);
-      state = AsyncValue.error(e, stackTrace);
+      final file = File(photo.path);
+      final fileName =
+          'delivery_proof_${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+      await Supabase.instance.client.storage
+          .from('delivery-proofs')
+          .upload(fileName, file);
+
+      final url = Supabase.instance.client.storage
+          .from('delivery-proofs')
+          .getPublicUrl(fileName);
+
+      state = state.copyWith(isUploading: false, url: url);
+      return url;
+    } catch (e) {
+      log('Error uploading photo: $e');
+      state = state.copyWith(isUploading: false, error: e.toString());
+      return null;
     }
   }
 
-  Future<void> refresh() => _loadShipment();
-
-  @override
-  void dispose() {
-    _subscription?.cancel();
-    super.dispose();
+  void clearState() {
+    state = const PhotoUploadState();
   }
 }
 
 // Photo upload provider
 final photoUploadProvider =
-    StateNotifierProvider<PhotoUploadNotifier, PhotoUploadState>((ref) {
+    NotifierProvider<PhotoUploadNotifier, PhotoUploadState>(() {
       return PhotoUploadNotifier();
     });
-
-class PhotoUploadState {
-  final bool isUploading;
-  final double progress;
-  final List<String> uploadedUrls;
-  final String? error;
-
-  const PhotoUploadState({
-    this.isUploading = false,
-    this.progress = 0.0,
-    this.uploadedUrls = const [],
-    this.error,
-  });
-
-  PhotoUploadState copyWith({
-    bool? isUploading,
-    double? progress,
-    List<String>? uploadedUrls,
-    String? error,
-  }) {
-    return PhotoUploadState(
-      isUploading: isUploading ?? this.isUploading,
-      progress: progress ?? this.progress,
-      uploadedUrls: uploadedUrls ?? this.uploadedUrls,
-      error: error,
-    );
-  }
-}
-
-class PhotoUploadNotifier extends StateNotifier<PhotoUploadState> {
-  PhotoUploadNotifier() : super(const PhotoUploadState());
-
-  void startUpload() {
-    state = state.copyWith(isUploading: true, progress: 0.0, error: null);
-  }
-
-  void updateProgress(double progress) {
-    state = state.copyWith(progress: progress);
-  }
-
-  void uploadSuccess(List<String> urls) {
-    state = state.copyWith(
-      isUploading: false,
-      uploadedUrls: urls,
-      progress: 1.0,
-    );
-  }
-
-  void uploadError(String error) {
-    state = state.copyWith(isUploading: false, error: error, progress: 0.0);
-  }
-
-  void reset() {
-    state = const PhotoUploadState();
-  }
-}
