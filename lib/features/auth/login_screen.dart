@@ -6,7 +6,7 @@ import '../../widgets/lottie_animations.dart';
 import '../../utils/test_users_helper_new.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
-import '../mitra/mitra_dashboard.dart';
+import '../mitra/mitra_dashboard_screen.dart';
 import '../admin/pages/admin_dashboard_page.dart';
 import '../driver/driver_dashboard_screen.dart';
 import 'database_debug_widget.dart';
@@ -38,6 +38,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     try {
+      // 1. Login ke Supabase Auth
       final response = await Supabase.instance.client.auth.signInWithPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
@@ -46,114 +47,113 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (response.user != null) {
         if (!mounted) return;
 
-        // Show success animation
+        // Tampilkan animasi loading
         await showDialog(
           context: context,
           barrierDismissible: false,
           builder: (context) => const LottieSuccessDialog(
             title: 'Login Berhasil!',
-            message: 'Selamat datang kembali',
+            message: 'Sedang memuat profil...',
           ),
         );
 
         if (!mounted) return;
 
-        // Get user role with multiple fallback strategies
+        // 2. AMBIL DATA DARI DATABASE (INI YANG DIPERBAIKI)
         String? roleName;
-        Map<String, dynamic>? userResponse;
 
         try {
-          // Get user profile with role enum
-          userResponse = await Supabase.instance.client
+          // Kita pakai teknik JOIN: Ambil data profiles DAN data dari tabel roles
+          final userResponse = await Supabase.instance.client
               .from('profiles')
-              .select('*')
+              .select(
+                '*, roles(name)',
+              ) // <--- PERHATIKAN INI: Ambil nama dari tabel roles
               .eq('id', response.user!.id)
-              .single();
+              .maybeSingle();
 
-          print('🔍 User Response: $userResponse');
+          print('🔍 Data dari Database: $userResponse');
 
-          // Get role from profile (enum field)
-          roleName = userResponse['role'];
-          print('🎭 Role Name from database: "$roleName"');
-        } catch (e) {
-          print('⚠️ Failed to get user profile: $e');
-
-          // Fallback: Use email to determine role
-          final email = response.user!.email;
-          if (email?.contains('admin') == true) {
-            roleName = 'admin';
-          } else if (email?.contains('mitra') == true) {
-            roleName = 'customer'; // Mitra is a customer
-          } else if (email?.contains('logistik') == true ||
-              email?.contains('driver') == true) {
-            roleName = 'driver';
+          if (userResponse != null) {
+            // Cek apakah relasi roles berhasil diambil
+            if (userResponse['roles'] != null) {
+              roleName =
+                  userResponse['roles']['name']; // Ambil text "Admin" / "Mitra Bisnis"
+            } else {
+              // KALAU JOIN GAGAL, KITA CEK MANUAL PAKAI ID
+              // (Sesuai gambar kakak: 1=Admin, 2=Mitra, 3=Logistik)
+              final int roleId =
+                  userResponse['role_id'] ??
+                  0; // Pastikan nama kolomnya role_id
+              if (roleId == 1)
+                roleName = 'admin';
+              else if (roleId == 2)
+                roleName = 'mitra_bisnis';
+              else if (roleId == 3)
+                roleName = 'driver';
+            }
           }
-          print('🎭 Role from email fallback: $roleName');
+        } catch (e) {
+          print('❌ Gagal ambil profil: $e');
+        }
+
+        // 3. Fallback (Jaga-jaga kalau database masih error)
+        if (roleName == null) {
+          final email = response.user!.email?.toLowerCase() ?? '';
+          if (email.contains('admin'))
+            roleName = 'admin';
+          else if (email.contains('mitra'))
+            roleName = 'mitra_bisnis';
+          else if (email.contains('driver'))
+            roleName = 'driver';
         }
 
         if (!mounted) return;
 
-        print('🎭 Final Role Name: "$roleName"');
-        print('🔍 Role Name toLowerCase: "${roleName?.toLowerCase()}"');
-        print(
-          '🔍 Contains admin: ${roleName?.toLowerCase().contains('admin')}',
-        );
-        print(
-          '🔍 Contains mitra: ${roleName?.toLowerCase().contains('mitra')}',
-        );
-        print(
-          '🔍 Contains logistik: ${roleName?.toLowerCase().contains('logistik')}',
-        );
+        // 4. BERSIHKAN STRING ROLE
+        // Database kakak isinya "Admin" (Huruf besar), "Mitra Bisnis" (Ada spasi).
+        // Kita ubah jadi huruf kecil semua biar gampang dicek.
+        final cleanRole = roleName?.toString().toLowerCase().trim();
 
-        // Navigate based on role enum
-        if (roleName == 'admin') {
-          print('📍 Navigating to Admin Dashboard');
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const AdminDashboardPage()),
-          );
-        } else if (roleName == 'customer' &&
-            response.user!.email?.contains('mitra') == true) {
-          print('📍 Navigating to Mitra Dashboard');
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const MitraDashboard()),
-          );
-        } else if (roleName == 'driver') {
-          print('📍 Navigating to Driver Dashboard');
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const DriverDashboardScreen(),
-            ),
-          );
-        } else {
-          if (mounted) {
-            showDialog(
-              context: context,
-              builder: (context) => AlertDialog(
-                title: const Text('Role Tidak Valid'),
-                content: Text(
-                  'Role pengguna tidak dikenali: $roleName\n\nEmail: ${response.user!.email}\n\nData user: $userResponse\n\nSilakan hubungi administrator.',
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('OK'),
-                  ),
-                ],
-              ),
-            );
-          }
+        print('🚀 Role Final: "$cleanRole"');
+
+        // 5. NAVIGASI
+        Widget nextScreen;
+
+        // Cek admin
+        if (cleanRole == 'admin') {
+          nextScreen = const AdminDashboardPage();
         }
+        // Cek mitra (handle "mitra bisnis" dan "mitra_bisnis")
+        else if (cleanRole!.contains('mitra')) {
+          nextScreen = const MitraDashboardScreen();
+        }
+        // Cek driver/logistik
+        else if (cleanRole.contains('logistik') ||
+            cleanRole.contains('driver')) {
+          nextScreen = const DriverDashboardScreen();
+        }
+        // Default ke Customer/Mitra
+        else {
+          nextScreen = const MitraDashboardScreen();
+        }
+
+        // Pindah Halaman
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => nextScreen),
+        );
       }
     } catch (error) {
       if (mounted) {
+        if (Navigator.canPop(context)) {
+          // Navigator.pop(context);
+        }
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('Login Gagal'),
-            content: Text(error.toString()),
+            content: Text('Terjadi kesalahan: $error'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),

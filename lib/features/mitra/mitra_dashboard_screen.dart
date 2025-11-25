@@ -1,19 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+// Pastikan import ini sesuai dengan lokasi file Kakak
 import '../../services/mitra_service.dart';
+import '../auth/login_screen.dart'; // <-- Pastikan path ini benar (ke file LoginScreen)
 import 'create_order_screen.dart';
 import 'order_history_screen.dart';
 import 'product_catalog_screen.dart';
 
-class MitraDashboard extends ConsumerStatefulWidget {
-  const MitraDashboard({super.key});
+class MitraDashboardScreen extends ConsumerStatefulWidget {
+  const MitraDashboardScreen({super.key});
 
   @override
-  ConsumerState<MitraDashboard> createState() => _MitraDashboardState();
+  ConsumerState<MitraDashboardScreen> createState() =>
+      _MitraDashboardScreenState();
 }
 
-class _MitraDashboardState extends ConsumerState<MitraDashboard> {
+class _MitraDashboardScreenState extends ConsumerState<MitraDashboardScreen> {
   Map<String, dynamic>? dashboardStats;
   bool isLoading = true;
   String? error;
@@ -33,22 +38,73 @@ class _MitraDashboardState extends ConsumerState<MitraDashboard> {
 
       final result = await MitraService.getDashboardStats();
 
-      if (result['success']) {
+      if (mounted) {
+        if (result['success']) {
+          setState(() {
+            dashboardStats = result['data'];
+            isLoading = false;
+          });
+        } else {
+          setState(() {
+            error = result['error'] ?? 'Gagal memuat data';
+            isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
         setState(() {
-          dashboardStats = result['data'];
-          isLoading = false;
-        });
-      } else {
-        setState(() {
-          error = result['error'] ?? 'Gagal memuat data';
+          error = 'Terjadi kesalahan: $e';
           isLoading = false;
         });
       }
-    } catch (e) {
-      setState(() {
-        error = 'Terjadi kesalahan: $e';
-        isLoading = false;
-      });
+    }
+  }
+
+  // Fungsi Logout yang sudah diperbaiki
+  Future<void> _handleLogout() async {
+    // 1. Tampilkan Dialog Konfirmasi
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Konfirmasi'),
+        content: const Text('Yakin ingin keluar dari akun?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text(
+              'Ya, Keluar',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    // 2. Eksekusi jika user pilih Ya
+    if (confirm == true && mounted) {
+      try {
+        // Logout dari Supabase
+        await Supabase.instance.client.auth.signOut();
+
+        if (mounted) {
+          // Pindah ke Halaman Login & Hapus history navigasi
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const LoginScreen()),
+            (route) => false,
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Gagal logout: $e')));
+        }
+      }
     }
   }
 
@@ -56,19 +112,16 @@ class _MitraDashboardState extends ConsumerState<MitraDashboard> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mitra Bisnis'),
-        backgroundColor: const Color(0xFF2E7D32),
+        title: const Text('Dashboard Mitra Bisnis'),
+        backgroundColor: const Color(0xFF1B5E20),
         foregroundColor: Colors.white,
-        automaticallyImplyLeading: false,
+        automaticallyImplyLeading: false, // Hilangkan tombol back default
         actions: [
+          // Tombol Logout Manual
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () {
-              // TODO: Implement logout
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Logout akan diimplementasikan')),
-              );
-            },
+            tooltip: 'Keluar',
+            onPressed: _handleLogout,
           ),
         ],
       ),
@@ -77,8 +130,8 @@ class _MitraDashboardState extends ConsumerState<MitraDashboard> {
         child: Padding(
           padding: EdgeInsets.all(16.w),
           child: isLoading
-              ? Center(
-                  child: CircularProgressIndicator(color: Color(0xFF2E7D32)),
+              ? const Center(
+                  child: CircularProgressIndicator(color: Color(0xFF1B5E20)),
                 )
               : error != null
               ? Column(
@@ -86,29 +139,30 @@ class _MitraDashboardState extends ConsumerState<MitraDashboard> {
                   children: [
                     Icon(
                       Icons.error_outline,
-                      size: 64.sp,
+                      size: 64.0,
                       color: Colors.red[300],
                     ),
-                    SizedBox(height: 16.h),
-                    Text(
+                    const SizedBox(height: 16.0),
+                    const Text(
                       'Terjadi kesalahan',
                       style: TextStyle(
-                        fontSize: 18.sp,
+                        fontSize: 18.0,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    SizedBox(height: 8.h),
+                    const SizedBox(height: 8.0),
                     Text(
                       error!,
-                      style: TextStyle(
-                        fontSize: 14.sp,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 14.0, color: Colors.grey[600]),
                       textAlign: TextAlign.center,
                     ),
-                    SizedBox(height: 24.h),
+                    const SizedBox(height: 24.0),
                     ElevatedButton(
                       onPressed: _loadDashboardData,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1B5E20),
+                        foregroundColor: Colors.white,
+                      ),
                       child: const Text('Coba Lagi'),
                     ),
                   ],
@@ -117,24 +171,21 @@ class _MitraDashboardState extends ConsumerState<MitraDashboard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Header
-                    Text(
-                      'Selamat Datang, Mitra',
+                    const Text(
+                      'Selamat Datang, Mitra Bisnis',
                       style: TextStyle(
-                        fontSize: 24.sp,
+                        fontSize: 24.0,
                         fontWeight: FontWeight.bold,
                         color: Colors.black87,
                       ),
                     ),
-                    SizedBox(height: 8.h),
+                    const SizedBox(height: 8.0),
                     Text(
-                      'Kelola pesanan cangkang sawit Anda',
-                      style: TextStyle(
-                        fontSize: 16.sp,
-                        color: Colors.grey[600],
-                      ),
+                      'Kelola pesanan cangkang sawit Anda dengan mudah',
+                      style: TextStyle(fontSize: 16.0, color: Colors.grey[600]),
                     ),
 
-                    SizedBox(height: 32.h),
+                    const SizedBox(height: 32.0),
 
                     // Quick Stats
                     Row(
@@ -147,7 +198,7 @@ class _MitraDashboardState extends ConsumerState<MitraDashboard> {
                             color: Colors.orange,
                           ),
                         ),
-                        SizedBox(width: 16.w),
+                        const SizedBox(width: 16.0),
                         Expanded(
                           child: _buildStatCard(
                             title: 'Pesanan Aktif',
@@ -159,7 +210,7 @@ class _MitraDashboardState extends ConsumerState<MitraDashboard> {
                       ],
                     ),
 
-                    SizedBox(height: 16.h),
+                    const SizedBox(height: 16.0),
 
                     // Additional Stats Row
                     Row(
@@ -172,7 +223,7 @@ class _MitraDashboardState extends ConsumerState<MitraDashboard> {
                             color: Colors.green,
                           ),
                         ),
-                        SizedBox(width: 16.w),
+                        const SizedBox(width: 16.0),
                         Expanded(
                           child: _buildStatCard(
                             title: 'Bulan Ini',
@@ -185,25 +236,25 @@ class _MitraDashboardState extends ConsumerState<MitraDashboard> {
                       ],
                     ),
 
-                    SizedBox(height: 32.h),
+                    const SizedBox(height: 32.0),
 
                     // Menu Options
-                    Text(
+                    const Text(
                       'Menu Utama',
                       style: TextStyle(
-                        fontSize: 18.sp,
+                        fontSize: 18.0,
                         fontWeight: FontWeight.w600,
                         color: Colors.black87,
                       ),
                     ),
 
-                    SizedBox(height: 16.h),
+                    const SizedBox(height: 16.0),
 
                     Expanded(
                       child: GridView.count(
                         crossAxisCount: 2,
-                        crossAxisSpacing: 16.w,
-                        mainAxisSpacing: 16.h,
+                        crossAxisSpacing: 16.0,
+                        mainAxisSpacing: 16.0,
                         children: [
                           _buildMenuCard(
                             title: 'Buat Pesanan',
@@ -238,6 +289,7 @@ class _MitraDashboardState extends ConsumerState<MitraDashboard> {
                             subtitle: 'Lacak pengiriman',
                             icon: Icons.location_on,
                             onTap: () {
+                              // Asumsi: Tracking masuk ke OrderHistory dulu untuk pilih order
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -278,10 +330,10 @@ class _MitraDashboardState extends ConsumerState<MitraDashboard> {
     required Color color,
   }) {
     return Container(
-      padding: EdgeInsets.all(16.w),
+      padding: const EdgeInsets.all(16.0),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12.r),
+        borderRadius: BorderRadius.circular(12.0),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.1),
@@ -297,21 +349,21 @@ class _MitraDashboardState extends ConsumerState<MitraDashboard> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(icon, color: color, size: 24.sp),
+              Icon(icon, color: color, size: 24.0),
               Text(
                 value,
                 style: TextStyle(
-                  fontSize: 24.sp,
+                  fontSize: 24.0,
                   fontWeight: FontWeight.bold,
                   color: color,
                 ),
               ),
             ],
           ),
-          SizedBox(height: 8.h),
+          const SizedBox(height: 8.0),
           Text(
             title,
-            style: TextStyle(fontSize: 12.sp, color: Colors.grey[600]),
+            style: TextStyle(fontSize: 12.0, color: Colors.grey[600]),
           ),
         ],
       ),
@@ -326,12 +378,12 @@ class _MitraDashboardState extends ConsumerState<MitraDashboard> {
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12.r),
+      borderRadius: BorderRadius.circular(12.0),
       child: Container(
-        padding: EdgeInsets.all(16.w),
+        padding: const EdgeInsets.all(16.0),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12.r),
+          borderRadius: BorderRadius.circular(12.0),
           boxShadow: [
             BoxShadow(
               color: Colors.grey.withOpacity(0.1),
@@ -344,21 +396,21 @@ class _MitraDashboardState extends ConsumerState<MitraDashboard> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 32.sp, color: const Color(0xFF2E7D32)),
-            SizedBox(height: 12.h),
+            Icon(icon, size: 32.0, color: const Color(0xFF1B5E20)),
+            const SizedBox(height: 12.0),
             Text(
               title,
-              style: TextStyle(
-                fontSize: 14.sp,
+              style: const TextStyle(
+                fontSize: 14.0,
                 fontWeight: FontWeight.w600,
                 color: Colors.black87,
               ),
               textAlign: TextAlign.center,
             ),
-            SizedBox(height: 4.h),
+            const SizedBox(height: 4.0),
             Text(
               subtitle,
-              style: TextStyle(fontSize: 12.sp, color: Colors.grey[600]),
+              style: TextStyle(fontSize: 12.0, color: Colors.grey[600]),
               textAlign: TextAlign.center,
             ),
           ],
