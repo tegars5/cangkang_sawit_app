@@ -1,13 +1,56 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:io';
+import 'package:supabase_flutter/supabase_flutter.dart' hide AuthException;
+import 'package:supabase_flutter/supabase_flutter.dart'
+    as supabase
+    show AuthException;
 import '../models/models.dart';
 import '../../core/services/supabase_service.dart';
+import '../../core/utils/result.dart';
+import '../../core/errors/app_exception.dart';
 
 /// Repository untuk mengelola operasi Authentication
 class AuthRepository {
   final SupabaseService _supabaseService = SupabaseService.instance;
 
+  /// Sign in user dengan email dan password
+  /// Returns Result<AuthResponse> untuk handling yang lebih baik
+  Future<Result<AuthResponse>> signIn({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      final response = await _supabaseService.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
+      return Success(response);
+    } on supabase.AuthException catch (e) {
+      // Handle Supabase auth errors
+      if (e.message.toLowerCase().contains('invalid') ||
+          e.message.toLowerCase().contains('credentials')) {
+        return Failure(AuthException.invalidCredentials());
+      } else if (e.message.toLowerCase().contains('not found')) {
+        return Failure(AuthException.userNotFound());
+      } else {
+        return Failure(
+          AuthException(
+            message: 'Gagal login: ${e.message}',
+            code: e.statusCode,
+            details: e.message,
+          ),
+        );
+      }
+    } on PostgrestException catch (e) {
+      return Failure(DatabaseException.queryFailed(e.message));
+    } on SocketException {
+      return Failure(NetworkException.noConnection());
+    } catch (e) {
+      return Failure(UnknownException.generic(e));
+    }
+  }
+
   /// Sign up user baru dengan email dan password
-  Future<AuthResponse> signUp({
+  Future<Result<AuthResponse>> signUp({
     required String email,
     required String password,
     required String namaLengkap,
@@ -31,34 +74,49 @@ class AuthRepository {
         });
       }
 
-      return response;
+      return Success(response);
+    } on supabase.AuthException catch (e) {
+      if (e.message.toLowerCase().contains('already') ||
+          e.message.toLowerCase().contains('exists')) {
+        return Failure(AuthException.emailAlreadyExists());
+      } else if (e.message.toLowerCase().contains('weak') ||
+          e.message.toLowerCase().contains('password')) {
+        return Failure(AuthException.weakPassword());
+      } else {
+        return Failure(
+          AuthException(
+            message: 'Gagal mendaftar: ${e.message}',
+            code: e.statusCode,
+            details: e.message,
+          ),
+        );
+      }
+    } on PostgrestException catch (e) {
+      return Failure(DatabaseException.queryFailed(e.message));
+    } on SocketException {
+      return Failure(NetworkException.noConnection());
     } catch (e) {
-      throw Exception('Gagal mendaftar: $e');
-    }
-  }
-
-  /// Sign in user dengan email dan password
-  Future<AuthResponse> signIn({
-    required String email,
-    required String password,
-  }) async {
-    try {
-      final response = await _supabaseService.auth.signInWithPassword(
-        email: email,
-        password: password,
-      );
-      return response;
-    } catch (e) {
-      throw Exception('Gagal login: $e');
+      return Failure(UnknownException.generic(e));
     }
   }
 
   /// Sign out user
-  Future<void> signOut() async {
+  Future<Result<void>> signOut() async {
     try {
       await _supabaseService.auth.signOut();
+      return const Success(null);
+    } on supabase.AuthException catch (e) {
+      return Failure(
+        AuthException(
+          message: 'Gagal logout: ${e.message}',
+          code: e.statusCode,
+          details: e.message,
+        ),
+      );
+    } on SocketException {
+      return Failure(NetworkException.noConnection());
     } catch (e) {
-      throw Exception('Gagal logout: $e');
+      return Failure(UnknownException.generic(e));
     }
   }
 
@@ -68,10 +126,12 @@ class AuthRepository {
   }
 
   /// Get user profile dengan relasi role
-  Future<UserProfile?> getUserProfile() async {
+  Future<Result<UserProfile>> getUserProfile() async {
     try {
       final userId = _supabaseService.currentUserId;
-      if (userId == null) return null;
+      if (userId == null) {
+        return Failure(AuthException.sessionExpired());
+      }
 
       final response = await _supabaseService.client
           .from('profiles')
@@ -79,47 +139,91 @@ class AuthRepository {
           .eq('user_id', userId)
           .single();
 
-      return UserProfile.fromJson(response);
+      final profile = UserProfile.fromJson(response);
+      return Success(profile);
+    } on PostgrestException catch (e) {
+      if (e.code == 'PGRST116') {
+        // No rows returned
+        return Failure(DatabaseException.recordNotFound('Profil'));
+      } else {
+        return Failure(DatabaseException.queryFailed(e.message));
+      }
+    } on SocketException {
+      return Failure(NetworkException.noConnection());
     } catch (e) {
-      throw Exception('Gagal mengambil profile user: $e');
+      return Failure(UnknownException.generic(e));
     }
   }
 
   /// Update user profile
-  Future<void> updateUserProfile({
+  Future<Result<void>> updateUserProfile({
     required String namaLengkap,
     String? telepon,
   }) async {
     try {
       final userId = _supabaseService.currentUserId;
-      if (userId == null) throw Exception('User tidak login');
+      if (userId == null) {
+        return Failure(AuthException.sessionExpired());
+      }
 
       await _supabaseService.client
           .from('profiles')
           .update({'nama_lengkap': namaLengkap, 'telepon': telepon})
           .eq('user_id', userId);
+
+      return const Success(null);
+    } on PostgrestException catch (e) {
+      return Failure(DatabaseException.queryFailed(e.message));
+    } on SocketException {
+      return Failure(NetworkException.noConnection());
     } catch (e) {
-      throw Exception('Gagal update profile: $e');
+      return Failure(UnknownException.generic(e));
     }
   }
 
   /// Change password
-  Future<void> changePassword({required String newPassword}) async {
+  Future<Result<void>> changePassword({required String newPassword}) async {
     try {
       await _supabaseService.auth.updateUser(
         UserAttributes(password: newPassword),
       );
+      return const Success(null);
+    } on supabase.AuthException catch (e) {
+      if (e.message.toLowerCase().contains('weak')) {
+        return Failure(AuthException.weakPassword());
+      } else {
+        return Failure(
+          AuthException(
+            message: 'Gagal ubah password: ${e.message}',
+            code: e.statusCode,
+            details: e.message,
+          ),
+        );
+      }
+    } on SocketException {
+      return Failure(NetworkException.noConnection());
     } catch (e) {
-      throw Exception('Gagal ubah password: $e');
+      return Failure(UnknownException.generic(e));
     }
   }
 
   /// Reset password dengan email
-  Future<void> resetPassword({required String email}) async {
+  Future<Result<void>> resetPassword({required String email}) async {
     try {
       await _supabaseService.auth.resetPasswordForEmail(email);
+      return const Success(null);
+    } on supabase.AuthException catch (e) {
+      return Failure(
+        AuthException(
+          message: 'Gagal reset password: ${e.message}',
+          code: e.statusCode,
+          details: e.message,
+        ),
+      );
+    } on SocketException {
+      return Failure(NetworkException.noConnection());
     } catch (e) {
-      throw Exception('Gagal reset password: $e');
+      return Failure(UnknownException.generic(e));
     }
   }
 
