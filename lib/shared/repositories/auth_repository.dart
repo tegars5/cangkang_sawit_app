@@ -66,11 +66,14 @@ class AuthRepository {
 
       if (response.user != null) {
         // 2. Buat profile user di database
+        // CRITICAL FIX: Gunakan nama kolom yang sesuai dengan schema database
         await _supabaseService.client.from('profiles').insert({
-          'user_id': response.user!.id,
-          'nama_lengkap': namaLengkap,
+          'id': response.user!.id, // Primary Key profiles = auth.users.id
+          'email': email, // Kolom email wajib (NOT NULL)
+          'full_name': namaLengkap, // Kolom di DB adalah 'full_name'
           'role_id': roleId,
-          'telepon': telepon,
+          'phone': telepon, // Kolom di DB adalah 'phone'
+          'created_at': DateTime.now().toIso8601String(),
         });
       }
 
@@ -136,7 +139,7 @@ class AuthRepository {
       final response = await _supabaseService.client
           .from('profiles')
           .select('*, roles(*)')
-          .eq('user_id', userId)
+          .eq('id', userId) // FIXED: Gunakan 'id' bukan 'user_id'
           .single();
 
       final profile = UserProfile.fromJson(response);
@@ -166,10 +169,14 @@ class AuthRepository {
         return Failure(AuthException.sessionExpired());
       }
 
+      // FIXED: Gunakan nama kolom yang sesuai schema
       await _supabaseService.client
           .from('profiles')
-          .update({'nama_lengkap': namaLengkap, 'telepon': telepon})
-          .eq('user_id', userId);
+          .update({
+            'full_name': namaLengkap, // Kolom di DB adalah 'full_name'
+            'phone': telepon, // Kolom di DB adalah 'phone'
+          })
+          .eq('id', userId); // Kolom primary key adalah 'id'
 
       return const Success(null);
     } on PostgrestException catch (e) {

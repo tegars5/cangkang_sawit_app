@@ -8,7 +8,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart'; // WAJIB: Untuk environment
 // Pastikan import ini sesuai dengan lokasi file Kakak
 import 'core/constants/app_constants.dart';
 import 'features/auth/login_screen.dart';
-import 'features/mitra/mitra_dashboard.dart';
+import 'features/mitra/mitra_dashboard_screen.dart';
 import 'features/admin/pages/admin_dashboard_page.dart'; // Sesuaikan nama file dashboard admin
 import 'features/driver/driver_dashboard_screen.dart'; // Sesuaikan nama file dashboard driver
 
@@ -104,24 +104,25 @@ class _AuthCheckState extends State<AuthCheck> {
     try {
       final profile = await Supabase.instance.client
           .from('profiles')
-          .select('role')
+          .select('role_id, roles(name)')
           .eq('id', userId)
           .single();
 
-      final role = profile['role'] as String?;
+      final roleId = profile['role_id'] as int?;
 
       if (mounted) {
-        if (role == 'mitra') {
+        if (roleId == 2) {
+          // Mitra Bisnis
           Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const MitraDashboard()),
+            MaterialPageRoute(builder: (_) => const MitraDashboardScreen()),
           );
-        } else if (role == 'admin') {
-          // Pastikan class AdminDashboardPage ada dan di-import
+        } else if (roleId == 1) {
+          // Admin
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (_) => const AdminDashboardPage()),
           );
-        } else if (role == 'driver') {
-          // Pastikan class DriverDashboard ada dan di-import
+        } else if (roleId == 3) {
+          // Driver/Logistik
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (_) => const DriverDashboardScreen()),
           );

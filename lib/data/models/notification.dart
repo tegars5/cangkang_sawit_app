@@ -159,3 +159,6 @@ class Notification {
   @override
   int get hashCode => id.hashCode;
 }
+
+// Alias untuk backward compatibility
+typedef NotificationModel = Notification;

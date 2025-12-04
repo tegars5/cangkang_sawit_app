@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/models.dart';
 import '../repositories/auth_repository.dart';
+import '../../core/utils/result.dart';
+import '../../core/errors/app_exception.dart';
 
 /// Auth state model
 class AuthState {
@@ -53,7 +55,21 @@ final currentUserProfileProvider = FutureProvider<UserProfile?>((ref) async {
   if (user == null) return null;
 
   final authRepository = ref.watch(authRepositoryProvider);
-  return await authRepository.getUserProfile();
+  final result = await authRepository.getUserProfile();
+
+  // Handle Result type
+  return result.when(
+    success: (profile) => profile,
+    failure: (exception) {
+      // Log error but return null instead of throwing
+      if (exception is AppException) {
+        print('Error getting user profile: ${exception.message}');
+      } else {
+        print('Error getting user profile: $exception');
+      }
+      return null;
+    },
+  );
 });
 
 /// Auth state provider
@@ -69,25 +85,28 @@ final authStateProvider = Provider<AuthState>((ref) {
 });
 
 /// Login method provider
-final loginMethodProvider = Provider<Future<User?> Function(String, String)>((
-  ref,
-) {
-  final authRepository = ref.watch(authRepositoryProvider);
-  return (email, password) async {
-    final response = await authRepository.signIn(
-      email: email,
-      password: password,
-    );
-    return response.user;
-  };
-});
+final loginMethodProvider =
+    Provider<Future<Result<User>> Function(String, String)>((ref) {
+      final authRepository = ref.watch(authRepositoryProvider);
+      return (email, password) async {
+        final result = await authRepository.signIn(
+          email: email,
+          password: password,
+        );
+
+        // Map Result<AuthResponse> to Result<User>
+        return result.map((authResponse) => authResponse.user!);
+      };
+    });
 
 /// Register method provider
 final registerMethodProvider =
-    Provider<Future<User?> Function(String, String, String, String)>((ref) {
+    Provider<Future<Result<User>> Function(String, String, String, String)>((
+      ref,
+    ) {
       final authRepository = ref.watch(authRepositoryProvider);
       return (email, password, fullName, role) async {
-        final response = await authRepository.signUp(
+        final result = await authRepository.signUp(
           email: email,
           password: password,
           namaLengkap: fullName,
@@ -97,14 +116,16 @@ final registerMethodProvider =
               ? 2
               : 3,
         );
-        return response.user;
+
+        // Map Result<AuthResponse> to Result<User>
+        return result.map((authResponse) => authResponse.user!);
       };
     });
 
 /// Logout method provider
-final logoutMethodProvider = Provider<Future<void> Function()>((ref) {
+final logoutMethodProvider = Provider<Future<Result<void>> Function()>((ref) {
   final authRepository = ref.watch(authRepositoryProvider);
   return () async {
-    await authRepository.signOut();
+    return await authRepository.signOut();
   };
 });

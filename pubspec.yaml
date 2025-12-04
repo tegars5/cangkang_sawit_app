@@ -82,6 +82,10 @@ dependencies:
   # Environment Variables
   flutter_dotenv: ^5.2.1
 
+  # PDF Generation & Printing
+  pdf: ^3.11.1
+  printing: ^5.13.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

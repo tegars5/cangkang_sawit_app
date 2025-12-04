@@ -1,5 +1,5 @@
-import '../shared/repositories/order_repository.dart';
-import '../shared/repositories/product_repository.dart';
+import '../../shared/repositories/order_repository.dart';
+import '../../shared/repositories/product_repository.dart';
 
 /// Service untuk Mitra Bisnis Dashboard
 /// Berfungsi sebagai "Adapter" antara UI Lama dengan Repository Baru
@@ -16,14 +16,11 @@ class MitraService {
           'id': product.id,
           'name': product.name,
           'price': product.price,
-          'price_per_ton':
-              product.price, // Mapping untuk kompatibilitas UI lama
+          'price_per_ton': product.price,
           'unit': product.unit,
-          'stock': product.stockAvailable, // Gunakan stockAvailable dari model
-          'stock_available':
-              product.stockAvailable, // Field tambahan untuk konsistensi
-          'description':
-              product.description ?? '', // Gunakan description dari model
+          'stock': product.stockAvailable,
+          'stock_available': product.stockAvailable,
+          'description': product.description ?? '',
           'is_active': product.isActive,
           'created_at': product.createdAt?.toIso8601String(),
           'updated_at': product.updatedAt?.toIso8601String(),
