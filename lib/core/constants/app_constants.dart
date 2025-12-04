@@ -1,10 +1,11 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 /// Konfigurasi konstanta aplikasi
 /// File ini berisi semua konstanta yang digunakan di seluruh aplikasi
 class AppConstants {
-  // Supabase Configuration
-  static const String supabaseUrl = 'https://pblydtqugcbrlezemerg.supabase.co';
-  static const String supabaseAnonKey =
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBibHlkdHF1Z2NicmxlemVtZXJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1NzM2ODksImV4cCI6MjA3NzE0OTY4OX0.Dwd0AcSCRw2uBCQqZB1m63MD1ZcjzPDYoNpOnPRPmU4';
+  // Supabase Configuration - Loaded from .env file
+  static String get supabaseUrl => dotenv.env['SUPABASE_URL'] ?? '';
+  static String get supabaseAnonKey => dotenv.env['SUPABASE_ANON_KEY'] ?? '';
 
   // Bucket Names untuk Supabase Storage
   static const String suratJalanBucket = 'surat-jalan';

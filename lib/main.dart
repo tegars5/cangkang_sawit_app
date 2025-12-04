@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart'; // WAJIB: Untuk Riverpo
 import 'package:flutter_screenutil/flutter_screenutil.dart'; // WAJIB: Untuk ukuran layar
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/date_symbol_data_local.dart'; // WAJIB: Untuk format tanggal Indo
+import 'package:flutter_dotenv/flutter_dotenv.dart'; // WAJIB: Untuk environment variables
 
 // Pastikan import ini sesuai dengan lokasi file Kakak
 import 'core/constants/app_constants.dart';
@@ -14,18 +15,22 @@ import 'features/driver/driver_dashboard_screen.dart'; // Sesuaikan nama file da
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1. Inisialisasi Supabase
-  // Pastikan AppConstants sudah berisi URL dan AnonKey yang benar
+  // 1. Load Environment Variables
+  // PENTING! Harus dipanggil sebelum mengakses AppConstants
+  await dotenv.load(fileName: ".env");
+
+  // 2. Inisialisasi Supabase
+  // Kredensial akan diambil dari file .env
   await Supabase.initialize(
     url: AppConstants.supabaseUrl,
     anonKey: AppConstants.supabaseAnonKey,
   );
 
-  // 2. Inisialisasi Format Tanggal Indonesia (PENTING! Biar gak merah saat buka kalender)
+  // 3. Inisialisasi Format Tanggal Indonesia (PENTING! Biar gak merah saat buka kalender)
   await initializeDateFormatting('id_ID', null);
 
   runApp(
-    // 3. Bungkus App dengan ProviderScope (PENTING! Biar Riverpod jalan)
+    // 4. Bungkus App dengan ProviderScope (PENTING! Biar Riverpod jalan)
     const ProviderScope(child: MyApp()),
   );
 }
@@ -35,7 +40,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 4. Bungkus dengan ScreenUtilInit agar .w dan .h berfungsi
+    // 5. Bungkus dengan ScreenUtilInit agar .w dan .h berfungsi
     return ScreenUtilInit(
       designSize: const Size(375, 812), // Ukuran desain standar (iPhone X)
       minTextAdapt: true,
