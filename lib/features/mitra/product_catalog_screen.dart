@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import '../../services/mitra_service.dart';
+import '../../shared/services/mitra_service.dart';
 import 'create_order_screen.dart';
 
 class ProductCatalogScreen extends ConsumerStatefulWidget {

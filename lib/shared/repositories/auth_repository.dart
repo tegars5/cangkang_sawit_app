@@ -65,16 +65,37 @@ class AuthRepository {
       );
 
       if (response.user != null) {
-        // 2. Buat profile user di database
-        // CRITICAL FIX: Gunakan nama kolom yang sesuai dengan schema database
-        await _supabaseService.client.from('profiles').insert({
-          'id': response.user!.id, // Primary Key profiles = auth.users.id
-          'email': email, // Kolom email wajib (NOT NULL)
-          'full_name': namaLengkap, // Kolom di DB adalah 'full_name'
-          'role_id': roleId,
-          'phone': telepon, // Kolom di DB adalah 'phone'
-          'created_at': DateTime.now().toIso8601String(),
-        });
+        // 2. Check if profile already exists (prevent duplicate)
+        final existingProfile = await _supabaseService.client
+            .from('profiles')
+            .select()
+            .eq('id', response.user!.id)
+            .maybeSingle();
+
+        if (existingProfile == null) {
+          // 3. Insert profile with all required fields and defaults
+          await _supabaseService.client.from('profiles').insert({
+            'id': response.user!.id,
+            'email': email,
+            'full_name': namaLengkap.isNotEmpty ? namaLengkap : 'User',
+            'role_id': roleId,
+            'phone': telepon ?? '',
+            'address': '',
+            'is_active': true,
+            'created_at': DateTime.now().toIso8601String(),
+          });
+        } else {
+          // Profile already exists, update it
+          await _supabaseService.client
+              .from('profiles')
+              .update({
+                'email': email,
+                'full_name': namaLengkap.isNotEmpty ? namaLengkap : 'User',
+                'role_id': roleId,
+                'phone': telepon ?? '',
+              })
+              .eq('id', response.user!.id);
+        }
       }
 
       return Success(response);
@@ -95,6 +116,16 @@ class AuthRepository {
         );
       }
     } on PostgrestException catch (e) {
+      // Handle duplicate key error specifically
+      if (e.code == '23505') {
+        return Failure(
+          DatabaseException(
+            message: 'Email sudah terdaftar. Silakan gunakan email lain.',
+            code: e.code,
+            details: e.message,
+          ),
+        );
+      }
       return Failure(DatabaseException.queryFailed(e.message));
     } on SocketException {
       return Failure(NetworkException.noConnection());
@@ -136,24 +167,60 @@ class AuthRepository {
         return Failure(AuthException.sessionExpired());
       }
 
+      print('🔍 Getting profile for user ID: $userId');
+
       final response = await _supabaseService.client
           .from('profiles')
-          .select('*, roles(*)')
-          .eq('id', userId) // FIXED: Gunakan 'id' bukan 'user_id'
+          .select('''
+            id,
+            email,
+            full_name,
+            role_id,
+            phone,
+            address,
+            is_active,
+            avatar_url,
+            city,
+            province,
+            postal_code,
+            driver_license,
+            vehicle_type,
+            vehicle_plate,
+            company_name,
+            job_title,
+            latitude,
+            longitude,
+            created_at,
+            updated_at,
+            roles (
+              id,
+              name,
+              created_at
+            )
+          ''')
+          .eq('id', userId)
           .single();
 
+      print('✅ Profile query successful');
+      print('📊 Response: $response');
+
       final profile = UserProfile.fromJson(response);
+
+      print('✅ Profile parsed: ${profile.email}, role_id: ${profile.roleId}');
+
       return Success(profile);
     } on PostgrestException catch (e) {
+      print('❌ PostgrestException: ${e.code} - ${e.message}');
       if (e.code == 'PGRST116') {
-        // No rows returned
         return Failure(DatabaseException.recordNotFound('Profil'));
       } else {
         return Failure(DatabaseException.queryFailed(e.message));
       }
     } on SocketException {
+      print('❌ SocketException: No internet connection');
       return Failure(NetworkException.noConnection());
     } catch (e) {
+      print('❌ Unexpected error: $e');
       return Failure(UnknownException.generic(e));
     }
   }
@@ -240,4 +307,24 @@ class AuthRepository {
 
   /// Cek apakah user sudah login
   bool get isLoggedIn => _supabaseService.isLoggedIn;
+
+  /// Update user profile
+  Future<Result<void>> updateProfile(
+    String userId,
+    Map<String, dynamic> updates,
+  ) async {
+    try {
+      await _supabaseService.client
+          .from('profiles')
+          .update(updates)
+          .eq('id', userId);
+      return const Success(null);
+    } on PostgrestException catch (e) {
+      return Failure(DatabaseException.queryFailed(e.message));
+    } on SocketException {
+      return Failure(NetworkException.noConnection());
+    } catch (e) {
+      return Failure(UnknownException.generic(e));
+    }
+  }
 }

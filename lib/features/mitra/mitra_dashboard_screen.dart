@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 // Pastikan import ini sesuai dengan lokasi file Kakak
-import '../../services/mitra_service.dart';
-import '../auth/login_screen.dart'; // <-- Pastikan path ini benar (ke file LoginScreen)
+import '../../shared/services/mitra_service.dart';
+import '../../widgets/common/logout_button.dart';
 import 'create_order_screen.dart';
 import 'order_history_screen.dart';
 import 'product_catalog_screen.dart';
@@ -61,53 +60,6 @@ class _MitraDashboardScreenState extends ConsumerState<MitraDashboardScreen> {
     }
   }
 
-  // Fungsi Logout yang sudah diperbaiki
-  Future<void> _handleLogout() async {
-    // 1. Tampilkan Dialog Konfirmasi
-    final bool? confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Konfirmasi'),
-        content: const Text('Yakin ingin keluar dari akun?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Batal'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text(
-              'Ya, Keluar',
-              style: TextStyle(color: Colors.red),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    // 2. Eksekusi jika user pilih Ya
-    if (confirm == true && mounted) {
-      try {
-        // Logout dari Supabase
-        await Supabase.instance.client.auth.signOut();
-
-        if (mounted) {
-          // Pindah ke Halaman Login & Hapus history navigasi
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (context) => const LoginScreen()),
-            (route) => false,
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Gagal logout: $e')));
-        }
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -117,12 +69,8 @@ class _MitraDashboardScreenState extends ConsumerState<MitraDashboardScreen> {
         foregroundColor: Colors.white,
         automaticallyImplyLeading: false, // Hilangkan tombol back default
         actions: [
-          // Tombol Logout Manual
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Keluar',
-            onPressed: _handleLogout,
-          ),
+          // Logout Button
+          LogoutButton.icon(),
         ],
       ),
       body: RefreshIndicator(

@@ -93,7 +93,7 @@ CREATE TABLE public.products (
 CREATE TABLE public.profiles (
   id uuid NOT NULL,
   email character varying NOT NULL UNIQUE,
-  full_name character varying,
+  full_name character varying DEFAULT 'User'::character varying,
   role_id integer,
   phone character varying,
   address text,

@@ -1,38 +1,33 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart'; // WAJIB: Untuk Riverpod
-import 'package:flutter_screenutil/flutter_screenutil.dart'; // WAJIB: Untuk ukuran layar
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:intl/date_symbol_data_local.dart'; // WAJIB: Untuk format tanggal Indo
-import 'package:flutter_dotenv/flutter_dotenv.dart'; // WAJIB: Untuk environment variables
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-// Pastikan import ini sesuai dengan lokasi file Kakak
 import 'core/constants/app_constants.dart';
+import 'shared/providers/auth_provider.dart';
 import 'features/auth/login_screen.dart';
 import 'features/mitra/mitra_dashboard_screen.dart';
-import 'features/admin/pages/admin_dashboard_page.dart'; // Sesuaikan nama file dashboard admin
-import 'features/driver/driver_dashboard_screen.dart'; // Sesuaikan nama file dashboard driver
+import 'features/admin/pages/admin_dashboard_page.dart';
+import 'features/driver/driver_dashboard_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // 1. Load Environment Variables
-  // PENTING! Harus dipanggil sebelum mengakses AppConstants
   await dotenv.load(fileName: ".env");
 
-  // 2. Inisialisasi Supabase
-  // Kredensial akan diambil dari file .env
+  // 2. Initialize Supabase
   await Supabase.initialize(
     url: AppConstants.supabaseUrl,
     anonKey: AppConstants.supabaseAnonKey,
   );
 
-  // 3. Inisialisasi Format Tanggal Indonesia (PENTING! Biar gak merah saat buka kalender)
+  // 3. Initialize Indonesian date formatting
   await initializeDateFormatting('id_ID', null);
 
-  runApp(
-    // 4. Bungkus App dengan ProviderScope (PENTING! Biar Riverpod jalan)
-    const ProviderScope(child: MyApp()),
-  );
+  runApp(const ProviderScope(child: MyApp()));
 }
 
 class MyApp extends StatelessWidget {
@@ -40,9 +35,8 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 5. Bungkus dengan ScreenUtilInit agar .w dan .h berfungsi
     return ScreenUtilInit(
-      designSize: const Size(375, 812), // Ukuran desain standar (iPhone X)
+      designSize: const Size(375, 812),
       minTextAdapt: true,
       splitScreenMode: true,
       builder: (context, child) {
@@ -51,14 +45,12 @@ class MyApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(
-              seedColor: const Color(0xFF2E7D32), // Warna Hijau Sawit
+              seedColor: const Color(0xFF2E7D32),
               primary: const Color(0xFF2E7D32),
             ),
             useMaterial3: true,
-            // Font default (opsional)
             fontFamily: 'Roboto',
           ),
-          // Cek sesi login saat aplikasi dibuka
           home: const AuthCheck(),
         );
       },
@@ -66,87 +58,46 @@ class MyApp extends StatelessWidget {
   }
 }
 
-/// Widget untuk mengecek status login user saat aplikasi baru dibuka
-class AuthCheck extends StatefulWidget {
+/// Widget to check authentication status using AuthProvider
+/// Clean architecture - no direct Supabase calls
+class AuthCheck extends ConsumerWidget {
   const AuthCheck({super.key});
 
   @override
-  State<AuthCheck> createState() => _AuthCheckState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authStateProvider);
 
-class _AuthCheckState extends State<AuthCheck> {
-  @override
-  void initState() {
-    super.initState();
-    _checkSession();
-  }
+    // Show loading while checking auth
+    if (authState.isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFF2E7D32)),
+        ),
+      );
+    }
 
-  Future<void> _checkSession() async {
-    try {
-      // Beri jeda sedikit agar splash screen terasa halus
-      await Future.delayed(const Duration(seconds: 2));
-
-      final session = Supabase.instance.client.auth.currentSession;
-
-      if (session == null) {
-        _navigateToLogin();
-      } else {
-        // Jika sudah login, cek role user untuk diarahkan ke dashboard yang benar
-        await _checkUserRole(session.user.id);
+    // If authenticated and has profile, navigate to appropriate dashboard
+    if (authState.isAuthenticated && authState.profile != null) {
+      final roleId = authState.profile!.roleId;
+      if (roleId != null) {
+        return _getDashboardForRole(roleId);
       }
-    } catch (e) {
-      // Jika error, lempar ke login aja biar aman
-      _navigateToLogin();
     }
+
+    // Not authenticated - show login
+    return const LoginScreen();
   }
 
-  Future<void> _checkUserRole(String userId) async {
-    try {
-      final profile = await Supabase.instance.client
-          .from('profiles')
-          .select('role_id, roles(name)')
-          .eq('id', userId)
-          .single();
-
-      final roleId = profile['role_id'] as int?;
-
-      if (mounted) {
-        if (roleId == 2) {
-          // Mitra Bisnis
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const MitraDashboardScreen()),
-          );
-        } else if (roleId == 1) {
-          // Admin
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const AdminDashboardPage()),
-          );
-        } else if (roleId == 3) {
-          // Driver/Logistik
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const DriverDashboardScreen()),
-          );
-        } else {
-          _navigateToLogin();
-        }
-      }
-    } catch (e) {
-      _navigateToLogin();
+  Widget _getDashboardForRole(int roleId) {
+    switch (roleId) {
+      case 1: // Admin
+        return const AdminDashboardPage();
+      case 2: // Mitra
+        return const MitraDashboardScreen();
+      case 3: // Driver
+        return const DriverDashboardScreen();
+      default:
+        return const MitraDashboardScreen();
     }
-  }
-
-  void _navigateToLogin() {
-    if (mounted) {
-      Navigator.of(
-        context,
-      ).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: CircularProgressIndicator(color: Color(0xFF2E7D32))),
-    );
   }
 }

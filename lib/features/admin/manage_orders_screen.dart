@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../widgets/lottie_animations.dart';
-import '../../services/admin_dashboard_service.dart';
+import '../../shared/services/admin_dashboard_service.dart';
 
 class ManageOrdersScreen extends ConsumerStatefulWidget {
   const ManageOrdersScreen({super.key});

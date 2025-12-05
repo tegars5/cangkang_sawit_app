@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../widgets/common/common_widgets.dart';
-import '../../../services/database_service.dart';
+import '../../../shared/services/shipment_service.dart';
 import 'shipment_detail_page.dart';
 
 /// Admin Shipments Page - Prepare and Track Shipments
@@ -114,7 +114,7 @@ class _AdminShipmentsPageState extends ConsumerState<AdminShipmentsPage> {
           // Shipments List
           Expanded(
             child: FutureBuilder<List<Map<String, dynamic>>>(
-              future: DatabaseService.getShipments(),
+              future: ShipmentService.getShipments(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return Center(child: CircularProgressIndicator());

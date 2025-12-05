@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../widgets/common/common_widgets.dart';
-import '../../../services/database_service.dart';
+import '../../../shared/services/driver_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Driver Dashboard Page - Overview and quick actions
@@ -43,13 +43,12 @@ class _DriverDashboardPageState extends ConsumerState<DriverDashboardPage> {
         currentUser = profileResponse;
 
         // Get driver dashboard stats
-        dashboardStats = await DatabaseService.getDriverDashboardStats(user.id);
+        dashboardStats = await DriverService.getDriverDashboardStats(user.id);
 
         // Get today's tasks
-        todayTasks = await DatabaseService.getTasks(
-          driverId: user.id,
+        todayTasks = await DriverService.getTasks(
+          user.id,
           date: DateTime.now(),
-          limit: 10,
         );
       }
 

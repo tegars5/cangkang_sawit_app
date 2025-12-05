@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../widgets/common/common_widgets.dart';
-import '../../../services/database_service.dart';
+import '../../../shared/services/driver_service.dart';
 import 'task_detail_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -35,10 +35,7 @@ class _DriverTasksPageState extends ConsumerState<DriverTasksPage> {
       final user = Supabase.instance.client.auth.currentUser;
       if (user != null) {
         // Get tasks for current driver
-        final tasks = await DatabaseService.getTasks(
-          driverId: user.id,
-          limit: 50,
-        );
+        final tasks = await DriverService.getTasks(user.id);
 
         setState(() {
           _tasks = tasks;
