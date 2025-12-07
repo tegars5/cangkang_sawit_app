@@ -39,6 +39,7 @@ CREATE TABLE public.notifications (
   message text NOT NULL,
   is_read boolean DEFAULT false,
   created_at timestamp with time zone DEFAULT now(),
+  category text DEFAULT 'system'::text,
   CONSTRAINT notifications_pkey PRIMARY KEY (id),
   CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
 );

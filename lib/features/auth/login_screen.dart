@@ -7,7 +7,7 @@ import '../../utils/test_users_helper_new.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
 import '../mitra/mitra_dashboard_screen.dart';
-import '../admin/pages/admin_dashboard_page.dart';
+import '../admin/pages/admin_main_layout.dart';
 import '../driver/driver_dashboard_screen.dart';
 import 'database_debug_widget.dart';
 
@@ -122,7 +122,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
         // Cek admin
         if (cleanRole == 'admin') {
-          nextScreen = const AdminDashboardPage();
+          nextScreen = const AdminMainLayout();
         }
         // Cek mitra (handle "mitra bisnis" dan "mitra_bisnis")
         else if (cleanRole!.contains('mitra')) {

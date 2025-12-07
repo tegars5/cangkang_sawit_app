@@ -4,39 +4,33 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../widgets/common/common_widgets.dart';
 import 'admin_dashboard_page.dart';
 import 'admin_orders_page.dart';
+import 'admin_products_page.dart';
 import 'admin_shipments_page.dart';
-import 'admin_users_page.dart';
 import 'admin_settings_page.dart';
+import '../providers/admin_providers.dart';
 
 /// Main Admin Layout dengan Bottom Navigation
-class AdminMainLayout extends ConsumerStatefulWidget {
+class AdminMainLayout extends ConsumerWidget {
   const AdminMainLayout({super.key});
 
   @override
-  ConsumerState<AdminMainLayout> createState() => _AdminMainLayoutState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentIndex = ref.watch(adminTabIndexProvider);
 
-class _AdminMainLayoutState extends ConsumerState<AdminMainLayout> {
-  int _currentIndex = 0;
+    final List<Widget> pages = [
+      const AdminDashboardPage(), // 0
+      const AdminOrdersPage(), // 1
+      const AdminShipmentsPage(), // 2 - Center FAB
+      const AdminProductsPage(), // 3
+      const AdminSettingsPage(), // 4
+    ];
 
-  final List<Widget> _pages = [
-    const AdminDashboardPage(),
-    const AdminOrdersPage(),
-    const AdminShipmentsPage(),
-    const AdminUsersPage(),
-    const AdminSettingsPage(),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(index: _currentIndex, children: _pages),
+      body: IndexedStack(index: currentIndex, children: pages),
       bottomNavigationBar: AdminBottomNavBar(
-        currentIndex: _currentIndex,
+        currentIndex: currentIndex,
         onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
+          ref.read(adminTabIndexProvider.notifier).state = index;
         },
       ),
     );

@@ -28,6 +28,21 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        
+        // Load environment variables from .env file
+        val envFile = rootProject.file("../.env")
+        if (envFile.exists()) {
+            envFile.readLines().forEach { line ->
+                val parts = line.split("=", limit = 2)
+                if (parts.size == 2) {
+                    val key = parts[0].trim()
+                    val value = parts[1].trim()
+                    if (key == "GOOGLE_MAPS_API_KEY") {
+                        manifestPlaceholders["GOOGLE_MAPS_API_KEY"] = value
+                    }
+                }
+            }
+        }
     }
 
     buildTypes {

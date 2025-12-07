@@ -9,7 +9,7 @@ import 'core/constants/app_constants.dart';
 import 'shared/providers/auth_provider.dart';
 import 'features/auth/login_screen.dart';
 import 'features/mitra/mitra_dashboard_screen.dart';
-import 'features/admin/pages/admin_dashboard_page.dart';
+import 'features/admin/pages/admin_main_layout.dart';
 import 'features/driver/driver_dashboard_screen.dart';
 
 void main() async {
@@ -91,7 +91,7 @@ class AuthCheck extends ConsumerWidget {
   Widget _getDashboardForRole(int roleId) {
     switch (roleId) {
       case 1: // Admin
-        return const AdminDashboardPage();
+        return const AdminMainLayout();
       case 2: // Mitra
         return const MitraDashboardScreen();
       case 3: // Driver

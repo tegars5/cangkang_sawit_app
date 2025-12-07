@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import '../models/models.dart';
 import '../../core/services/supabase_service.dart';
 
@@ -8,17 +9,20 @@ class OrderRepository {
   /// Get semua pesanan (Admin) atau pesanan milik user (Mitra)
   Future<List<Order>> getOrders({String? status}) async {
     try {
+      debugPrint('🔍 OrderRepository.getOrders: START');
       final userId = _supabaseService.currentUserId;
       if (userId == null) throw Exception('User tidak login');
+      debugPrint('🔍 OrderRepository.getOrders: userId = $userId');
 
       // Get user profile untuk cek role
       final userProfile = await _supabaseService.client
           .from('profiles')
-          .select('role, role_id')
+          .select('role_id')
           .eq('id', userId)
           .single();
 
-      final role = userProfile['role'] as String?;
+      final roleId = userProfile['role_id'] as int?;
+      debugPrint('🔍 OrderRepository.getOrders: roleId = $roleId');
 
       var query = _supabaseService.client.from('orders').select('''
             id, order_number, customer_id, order_date, status, 
@@ -26,7 +30,7 @@ class OrderRepository {
             admin_notes, customer_notes, confirmed_at, completed_at,
             created_at, updated_at, pickup_address, delivery_address,
             pickup_date, delivery_date, notes,
-            profiles:customer_id(id, email, full_name, phone, role),
+            profiles:customer_id(id, email, full_name, phone, role_id),
             order_details(
               id, order_id, product_id, requested_quantity, confirmed_quantity,
               unit_price, subtotal, notes, created_at, updated_at,
@@ -35,21 +39,35 @@ class OrderRepository {
           ''');
 
       // Filter berdasarkan role
-      if (role == 'mitra') {
-        // Mitra - hanya lihat pesanan sendiri
+      if (roleId == 2) {
+        // Mitra (role_id = 2) - hanya lihat pesanan sendiri
+        debugPrint('🔍 OrderRepository.getOrders: Filtering for Mitra');
         query = query.eq('customer_id', userId);
+      } else {
+        debugPrint(
+          '🔍 OrderRepository.getOrders: Admin/Driver - showing all orders',
+        );
       }
-      // Admin dan driver bisa lihat semua pesanan
+      // Admin (role_id = 1) dan driver (role_id = 3) bisa lihat semua pesanan
 
       // Filter berdasarkan status jika ada
       if (status != null) {
+        debugPrint(
+          '🔍 OrderRepository.getOrders: Filtering by status = $status',
+        );
         query = query.eq('status', status);
       }
 
-      final response = await query.order('order_date', ascending: false);
+      debugPrint('🔍 OrderRepository.getOrders: Executing query...');
+      final response = await query.order('created_at', ascending: false);
+      debugPrint(
+        '📦 OrderRepository.getOrders: Got ${(response as List).length} orders',
+      );
 
-      return (response as List).map((order) => Order.fromJson(order)).toList();
-    } catch (e) {
+      return response.map((order) => Order.fromJson(order)).toList();
+    } catch (e, stackTrace) {
+      debugPrint('❌ OrderRepository.getOrders: ERROR = $e');
+      debugPrint('❌ OrderRepository.getOrders: STACK = $stackTrace');
       throw Exception('Gagal mengambil data pesanan: $e');
     }
   }
@@ -65,7 +83,7 @@ class OrderRepository {
             admin_notes, customer_notes, confirmed_at, completed_at,
             created_at, updated_at, pickup_address, delivery_address,
             pickup_date, delivery_date, notes,
-            profiles:customer_id(id, email, full_name, phone, role),
+            profiles:customer_id(id, email, full_name, phone, role_id),
             order_details(
               id, order_id, product_id, requested_quantity, confirmed_quantity,
               unit_price, subtotal, notes, created_at, updated_at,
@@ -305,7 +323,7 @@ class OrderRepository {
             admin_notes, customer_notes, confirmed_at, completed_at,
             created_at, updated_at, pickup_address, delivery_address,
             pickup_date, delivery_date, notes,
-            profiles:customer_id(id, email, full_name, phone, role),
+            profiles:customer_id(id, email, full_name, phone, role_id),
             order_details(
               id, order_id, product_id, requested_quantity, confirmed_quantity,
               unit_price, subtotal, notes, created_at, updated_at,
@@ -342,7 +360,7 @@ class OrderRepository {
             admin_notes, customer_notes, confirmed_at, completed_at,
             created_at, updated_at, pickup_address, delivery_address,
             pickup_date, delivery_date, notes,
-            profiles:customer_id(id, email, full_name, phone, role),
+            profiles:customer_id(id, email, full_name, phone, role_id),
             order_details(
               id, order_id, product_id, requested_quantity, confirmed_quantity,
               unit_price, subtotal, notes, created_at, updated_at,
@@ -446,7 +464,7 @@ class OrderRepository {
             admin_notes, customer_notes, confirmed_at, completed_at,
             created_at, updated_at, pickup_address, delivery_address,
             pickup_date, delivery_date, notes,
-            profiles:customer_id(id, email, full_name, phone, role),
+            profiles:customer_id(id, email, full_name, phone, role_id),
             order_details(
               id, order_id, product_id, requested_quantity, confirmed_quantity,
               unit_price, subtotal, notes, created_at, updated_at,

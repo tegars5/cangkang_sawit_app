@@ -8,20 +8,37 @@ class ProductRepository {
   /// Get semua produk yang aktif
   Future<List<Product>> getAllProducts() async {
     try {
+      print('🔍 ProductRepository: Fetching products...');
+
+      // Gunakan wildcard select untuk menghindari column mismatch
       final response = await _supabaseService.client
           .from('products')
-          .select('''
-            id, name, description, price_per_ton, unit,
-            stock_available, minimum_order, category, product_code,
-            specifications, is_active, created_at, updated_at
-          ''')
+          .select('*')
           .eq('is_active', true)
-          .order('name'); // Sort by name
+          .order('name');
 
-      return (response as List)
-          .map((product) => Product.fromJson(product))
-          .toList();
+      print(
+        '📦 ProductRepository: Fetched ${(response as List).length} products',
+      );
+
+      // Parse dengan error handling per-item
+      final List<Product> products = [];
+      for (int i = 0; i < (response as List).length; i++) {
+        try {
+          final productData = response[i];
+          final product = Product.fromJson(productData);
+          products.add(product);
+        } catch (e) {
+          print('❌ Error parsing product at index $i: $e');
+          print('   Raw data: ${response[i]}');
+          // Skip product yang error
+          continue;
+        }
+      }
+
+      return products;
     } catch (e) {
+      print('❌ ProductRepository.getAllProducts error: $e');
       throw Exception('Gagal mengambil data produk: $e');
     }
   }
@@ -31,43 +48,43 @@ class ProductRepository {
     try {
       final response = await _supabaseService.client
           .from('products')
-          .select('''
-            id, name, description, price_per_ton, unit,
-            stock_available, minimum_order, category, product_code,
-            specifications, is_active, created_at, updated_at
-          ''')
+          .select('*')
           .eq('id', productId)
           .single();
 
       return Product.fromJson(response);
     } catch (e) {
+      print('❌ ProductRepository.getProductById error: $e');
       throw Exception('Gagal mengambil produk: $e');
     }
   }
 
   /// Create produk baru (Admin only)
+  /// Database columns: id, name, description, price_per_ton, stock_available, category, product_code, is_active, created_at
   Future<Product> createProduct({
     required String name,
     required double pricePerTon,
-    required String unit,
+    double? stockAvailable,
   }) async {
     try {
-      // FIXED: Sesuaikan nama kolom dengan database (name, price_per_ton, unit)
+      print('🔍 ProductRepository: Creating product "$name"...');
+
       final response = await _supabaseService.client
           .from('products')
           .insert({
-            'name': name, 
-            'price_per_ton': pricePerTon, 
-            'unit': unit,
-            'stock_available': 0, // Default stock
-            'category': 'Palm Shell', // Default category
-            'is_active': true
+            'name': name,
+            'price_per_ton': pricePerTon,
+            'stock_available': stockAvailable ?? 0,
+            'category': 'Palm Shell',
+            'is_active': true,
           })
           .select()
           .single();
 
+      print('✅ ProductRepository: Product created successfully');
       return Product.fromJson(response);
     } catch (e) {
+      print('❌ ProductRepository.createProduct error: $e');
       throw Exception('Gagal membuat produk: $e');
     }
   }
@@ -77,25 +94,28 @@ class ProductRepository {
     required String productId,
     required String name,
     required double pricePerTon,
-    required String unit,
+    double? stockAvailable,
     bool? isActive,
   }) async {
     try {
-      // FIXED: Gunakan nama kolom bahasa Inggris
+      print('🔍 ProductRepository: Updating product $productId...');
+
       final response = await _supabaseService.client
           .from('products')
           .update({
             'name': name,
             'price_per_ton': pricePerTon,
-            'unit': unit,
+            if (stockAvailable != null) 'stock_available': stockAvailable,
             if (isActive != null) 'is_active': isActive,
           })
           .eq('id', productId)
           .select()
           .single();
 
+      print('✅ ProductRepository: Product updated successfully');
       return Product.fromJson(response);
     } catch (e) {
+      print('❌ ProductRepository.updateProduct error: $e');
       throw Exception('Gagal update produk: $e');
     }
   }
@@ -103,11 +123,16 @@ class ProductRepository {
   /// Soft delete produk (Admin only)
   Future<void> deleteProduct(String productId) async {
     try {
+      print('🔍 ProductRepository: Deleting product $productId...');
+
       await _supabaseService.client
           .from('products')
           .update({'is_active': false})
           .eq('id', productId);
+
+      print('✅ ProductRepository: Product deleted successfully');
     } catch (e) {
+      print('❌ ProductRepository.deleteProduct error: $e');
       throw Exception('Gagal hapus produk: $e');
     }
   }
@@ -119,13 +144,14 @@ class ProductRepository {
           .from('products')
           .select()
           .eq('is_active', true)
-          .ilike('name', '%$query%') // FIXED: search column 'name'
+          .ilike('name', '%$query%')
           .order('name');
 
       return (response as List)
           .map((product) => Product.fromJson(product))
           .toList();
     } catch (e) {
+      print('❌ ProductRepository.searchProducts error: $e');
       throw Exception('Gagal search produk: $e');
     }
   }

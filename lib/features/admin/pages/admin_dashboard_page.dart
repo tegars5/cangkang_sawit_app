@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../widgets/common/common_widgets.dart';
-import '../../../core/helpers/auth_helper.dart';
 import '../../../debug/google_maps_test_screen.dart';
+import '../providers/admin_providers.dart';
+import 'admin_users_page.dart';
 
 /// Admin Dashboard - Welcome back, Admin
 class AdminDashboardPage extends ConsumerWidget {
@@ -13,27 +14,6 @@ class AdminDashboardPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        title: Row(
-          children: [
-            Icon(Icons.menu, color: const Color(0xFF374151), size: 24.sp),
-            const Spacer(),
-            Text(
-              'Fujiyama Biomass',
-              style: TextStyle(
-                fontSize: 18.sp,
-                fontWeight: FontWeight.bold,
-                color: const Color(0xFF374151),
-              ),
-            ),
-            const Spacer(),
-            AuthHelper.buildLogoutButton(context),
-          ],
-        ),
-      ),
       body: RefreshIndicator(
         onRefresh: () async {
           // TODO: Implement refresh logic
@@ -128,7 +108,8 @@ class AdminDashboardPage extends ConsumerWidget {
                 text: 'Create New Order',
                 icon: Icons.add,
                 onPressed: () {
-                  // TODO: Navigate to create order
+                  // Switch to Orders tab (index 1)
+                  ref.read(adminTabIndexProvider.notifier).state = 1;
                 },
               ),
 
@@ -138,7 +119,8 @@ class AdminDashboardPage extends ConsumerWidget {
                 text: 'Manage Products',
                 icon: Icons.inventory_2_outlined,
                 onPressed: () {
-                  // TODO: Navigate to manage products
+                  // Switch to Products tab (index 3)
+                  ref.read(adminTabIndexProvider.notifier).state = 3;
                 },
               ),
 
@@ -148,7 +130,23 @@ class AdminDashboardPage extends ConsumerWidget {
                 text: 'View All Shipments',
                 icon: Icons.local_shipping_outlined,
                 onPressed: () {
-                  // TODO: Navigate to shipments
+                  // Switch to Shipments tab (index 2 - Center FAB)
+                  ref.read(adminTabIndexProvider.notifier).state = 2;
+                },
+              ),
+
+              SizedBox(height: 12.h),
+
+              SecondaryButton(
+                text: 'Manage Users',
+                icon: Icons.people_outline,
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AdminUsersPage(),
+                    ),
+                  );
                 },
               ),
 
