@@ -67,7 +67,7 @@ class _MitraDashboardScreenState extends ConsumerState<MitraDashboardScreen> {
         title: const Text('Dashboard Mitra Bisnis'),
         backgroundColor: const Color(0xFF1B5E20),
         foregroundColor: Colors.white,
-        automaticallyImplyLeading: false, // Hilangkan tombol back default
+        automaticallyImplyLeading: false,
         actions: [
           // Logout Button
           LogoutButton.icon(),

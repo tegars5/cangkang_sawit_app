@@ -13,6 +13,7 @@ import '../../shared/models/shipment.dart';
 import '../shipment/delivery_confirmation_screen.dart';
 import '../../core/helpers/auth_helper.dart';
 import '../../debug/google_maps_test_screen.dart';
+import 'pages/driver_tracking_page.dart';
 
 class DriverDashboardScreen extends ConsumerStatefulWidget {
   const DriverDashboardScreen({super.key});
@@ -633,6 +634,13 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
           const SnackBar(
             content: Text('Pengiriman dimulai'),
             backgroundColor: Colors.green,
+          ),
+        );
+
+        // Navigate to tracking page
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => DriverTrackingPage(shipment: shipment),
           ),
         );
       }

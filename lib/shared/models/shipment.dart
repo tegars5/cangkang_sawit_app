@@ -10,7 +10,7 @@ class Shipment {
   final String? deliveryNoteUrl;
   final String? proofOfDeliveryUrl;
   final String status; // pending, in_transit, arrived, completed
-  final DateTime assignedAt;
+  final DateTime? assignedAt;
   final DateTime? startedAt;
   final DateTime? completedAt;
   final DateTime? estimatedArrival;
@@ -19,6 +19,8 @@ class Shipment {
   final DateTime? estimatedDelivery;
   final DateTime? actualDelivery;
   final String? trackingNumber;
+  final double? destinationLat; // Destination latitude
+  final double? destinationLng; // Destination longitude
 
   // Relasi
   final UserProfile? driver;
@@ -32,7 +34,7 @@ class Shipment {
     this.deliveryNoteUrl,
     this.proofOfDeliveryUrl,
     required this.status,
-    required this.assignedAt,
+    this.assignedAt,
     this.startedAt,
     this.completedAt,
     this.estimatedArrival,
@@ -41,6 +43,8 @@ class Shipment {
     this.estimatedDelivery,
     this.actualDelivery,
     this.trackingNumber,
+    this.destinationLat,
+    this.destinationLng,
     this.driver,
     this.order,
   });
@@ -54,7 +58,9 @@ class Shipment {
       deliveryNoteUrl: json['delivery_note_url'] as String?,
       proofOfDeliveryUrl: json['proof_of_delivery_url'] as String?,
       status: json['status'] as String,
-      assignedAt: DateTime.parse(json['assigned_at'] as String),
+      assignedAt: json['assigned_at'] != null
+          ? DateTime.parse(json['assigned_at'] as String)
+          : null,
       startedAt: json['started_at'] != null
           ? DateTime.parse(json['started_at'] as String)
           : null,
@@ -75,6 +81,12 @@ class Shipment {
           ? DateTime.parse(json['actual_delivery'] as String)
           : null,
       trackingNumber: json['tracking_number'] as String?,
+      destinationLat: json['destination_lat'] != null
+          ? (json['destination_lat'] as num).toDouble()
+          : null,
+      destinationLng: json['destination_lng'] != null
+          ? (json['destination_lng'] as num).toDouble()
+          : null,
       driver: json['profiles'] != null
           ? UserProfile.fromJson(json['profiles'] as Map<String, dynamic>)
           : null,
@@ -93,7 +105,7 @@ class Shipment {
       'delivery_note_url': deliveryNoteUrl,
       'proof_of_delivery_url': proofOfDeliveryUrl,
       'status': status,
-      'assigned_at': assignedAt.toIso8601String(),
+      'assigned_at': assignedAt?.toIso8601String(),
       'started_at': startedAt?.toIso8601String(),
       'completed_at': completedAt?.toIso8601String(),
       'estimated_arrival': estimatedArrival?.toIso8601String(),
@@ -102,6 +114,8 @@ class Shipment {
       'estimated_delivery': estimatedDelivery?.toIso8601String(),
       'actual_delivery': actualDelivery?.toIso8601String(),
       'tracking_number': trackingNumber,
+      'destination_lat': destinationLat,
+      'destination_lng': destinationLng,
     };
   }
 
@@ -236,6 +250,8 @@ class Shipment {
     DateTime? estimatedDelivery,
     DateTime? actualDelivery,
     String? trackingNumber,
+    double? destinationLat,
+    double? destinationLng,
     UserProfile? driver,
     Order? order,
   }) {
@@ -256,6 +272,8 @@ class Shipment {
       estimatedDelivery: estimatedDelivery ?? this.estimatedDelivery,
       actualDelivery: actualDelivery ?? this.actualDelivery,
       trackingNumber: trackingNumber ?? this.trackingNumber,
+      destinationLat: destinationLat ?? this.destinationLat,
+      destinationLng: destinationLng ?? this.destinationLng,
       driver: driver ?? this.driver,
       order: order ?? this.order,
     );

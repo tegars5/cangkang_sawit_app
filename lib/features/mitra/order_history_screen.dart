@@ -388,7 +388,7 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
             ),
             SizedBox(height: 4.h),
             Text(
-              '${order.totalQuantity.toStringAsFixed(0)} kg',
+              '${order.totalQuantity.toStringAsFixed(1)} ton',
               style: TextStyle(fontSize: 12.sp, color: Colors.grey[600]),
             ),
 
@@ -568,7 +568,7 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
               ),
               _buildDetailRow(
                 'Jumlah:',
-                '${order.totalQuantity.toStringAsFixed(0)} kg',
+                '${order.totalQuantity.toStringAsFixed(1)} ton',
               ),
               _buildDetailRow('Total Harga:', order.formattedTotalAmount),
               _buildDetailRow('Status:', _getStatusText(order.status)),

@@ -1,87 +1,159 @@
-Task: Fix Admin Orders Page Crash (Null Safety)
-Context: The user is experiencing a crash/error on the AdminOrdersPage. It is likely due to a Null Safety issue when parsing the Order model, specifically when accessing related data like users (Mitra) or order_items.
+Driver Real-Time Tracking Implementation
+Implementasi fitur tracking real-time untuk driver menggunakan Google Maps API, mirip dengan aplikasi Grab saat membawa penumpang, namun untuk pengiriman barang cangkang sawit.
 
-Objective: Make the Order model and AdminOrdersPage robust so it doesn't crash even if some data is missing.
+User Review Required
+IMPORTANT
 
-Instructions:
+Auto-Start Tracking Behavior Tracking akan otomatis dimulai ketika driver ditugaskan (assigned) ke shipment. Driver dapat mematikan tracking secara manual, namun akan ada peringatan bahwa tracking diperlukan untuk monitoring pengiriman.
 
-Update lib/data/models/order.dart (Crucial):
+IMPORTANT
 
-Modify the fromMap or fromJson factory.
+Database Schema Update Tabel driver_locations di database sudah ada dan memiliki kolom yang diperlukan. Namun, perlu dipastikan bahwa kolom shipment_id nullable sudah sesuai dengan schema yang ada.
 
-Safeguard Relations: When parsing related tables (like users or mitra), use a check.
+Proposed Changes
+Driver Feature - Tracking Page
+[NEW] 
+driver_tracking_page.dart
+Halaman tracking utama untuk driver yang menampilkan:
 
-Example Fix:
+Google Maps dengan marker posisi driver saat ini
+Marker tujuan pengiriman (destination)
+Polyline rute dari posisi driver ke tujuan
+Info panel dengan detail shipment
+Status tracking (aktif/tidak aktif)
+Tombol toggle untuk start/stop tracking
+ETA (Estimated Time of Arrival) ke tujuan
+Jarak yang tersisa
+Kecepatan saat ini
+Fitur khusus:
 
-Dart
+Auto-start tracking ketika shipment status = 'in_transit'
+Real-time location updates setiap 10 detik
+Auto-save location ke database setiap 30 detik
+Camera auto-follow driver location
+Zoom controls
+Driver Feature - Services
+[NEW] 
+driver_tracking_service.dart
+Service untuk mengelola tracking logic:
 
-// Instead of: user: UserProfile.fromMap(map['users'])
-// Use this:
-user: map['users'] != null ? UserProfile.fromMap(map['users']) : null,
-Safeguard Fields: Ensure required fields like totalPrice or status have fallback values (e.g., 0 or 'pending') if they are null in the database.
+Auto-start tracking ketika driver assigned
+Periodic location updates
+Location persistence ke database
+Tracking state management
+Background tracking support (future enhancement)
+Driver Feature - Controllers
+[NEW] 
+driver_tracking_controller.dart
+Riverpod StateNotifier untuk state management:
 
-Update lib/features/admin/pages/admin_orders_page.dart:
+Tracking state (active/inactive)
+Current location
+Active shipment
+ETA calculation
+Distance calculation
+Route polyline generation
+Driver Feature - Integration
+[MODIFY] 
+driver_dashboard_screen.dart
+Update untuk integrasi dengan tracking page:
 
-In the ListView.builder, when displaying the order card:
+Tambah button "Mulai Tracking" pada shipment card
+Navigate ke tracking page ketika shipment dimulai
+Auto-redirect ke tracking page jika ada active shipment dengan status 'in_transit'
+[MODIFY] 
+task_detail_page.dart
+Update navigation button untuk membuka tracking page:
 
-Check if order.user is null before accessing order.user.name.
+Replace TODO pada navigation button (line 38-39)
+Navigate ke driver tracking page dengan shipment data
+Shared - Location Repository Enhancement
+[MODIFY] 
+location_repository.dart
+Enhancement untuk mendukung driver tracking:
 
-Use a fallback text like "Unknown User" or "Mitra Terhapus".
+Add method untuk get latest driver location
+Add method untuk calculate ETA based on distance and speed
+Improve error handling untuk location updates
+Shared - Shipment Model Enhancement
+[MODIFY] 
+shipment.dart
+Tambah helper properties:
 
-Example: Text(order.user?.name ?? 'Unknown Mitra').
+destinationLat dan destinationLng dari database schema
+Helper untuk check if tracking should be active
+Getter untuk destination coordinates
+Verification Plan
+Automated Tests
+Tidak ada automated tests yang akan dibuat untuk fase ini karena fokus pada UI dan integrasi dengan Google Maps yang memerlukan manual testing.
 
-Update lib/shared/repositories/order_repository.dart:
+Manual Verification
+NOTE
 
-Ensure the .select() query correctly includes the relations needed, e.g., .select('*, users(*), order_items(*)').
+Manual testing akan dilakukan oleh user karena memerlukan device fisik dengan GPS dan Google Maps API key yang valid.
 
-Add a try-catch block around the fetch to log the specific error to the console (debugPrint).
+Prerequisites:
 
-Deliverables:
+Pastikan Google Maps API key sudah dikonfigurasi di Android (
+android/app/src/main/AndroidManifest.xml
+) dan iOS (
+ios/Runner/AppDelegate.swift
+)
+Pastikan permissions untuk location sudah ditambahkan di manifest files
+Device fisik atau emulator dengan GPS enabled
+Test Scenarios:
 
-A crash-proof Order model.
+Test Auto-Start Tracking
 
+Login sebagai driver
+Lihat shipment dengan status 'assigned' di dashboard
+Tap "Mulai" untuk start shipment
+Verify: Otomatis navigate ke tracking page
+Verify: Tracking otomatis aktif (GPS icon hijau)
+Verify: Map menampilkan marker driver dan destination
+Test Real-Time Location Updates
 
-Task: Fix Admin Products Page Error (Null Safety & Parsing)
-Context: The user is reporting a crash/error on the Admin Products page, similar to the Orders page. This is likely due to Null Safety issues in the Product model (e.g., parsing price or stock) or UI rendering issues when a field is missing.
+Dengan tracking aktif, pindahkan device/emulator
+Verify: Marker driver bergerak mengikuti posisi baru
+Verify: Polyline route update
+Verify: Distance dan ETA update
+Test Location Persistence
 
-Objective: Harden the Product model and the AdminProductsPage to prevent crashes due to bad or missing data.
+Biarkan tracking berjalan selama 1-2 menit
+Check database table driver_locations
+Verify: Ada record baru setiap ~30 detik
+Verify: Data latitude, longitude, speed, heading tersimpan
+Test Manual Stop/Start Tracking
 
-Action Items:
+Tap tombol GPS untuk stop tracking
+Verify: Muncul warning dialog
+Confirm stop
+Verify: GPS icon berubah warna/status
+Tap lagi untuk start tracking
+Verify: Tracking aktif kembali
+Test Navigation Integration
 
-Update lib/data/models/product.dart (Crucial):
+Dari task detail page, tap navigation icon
+Verify: Navigate ke tracking page
+Verify: Shipment data ditampilkan dengan benar
+Test Permission Handling
 
-Safe Number Parsing: Ensure price and stock can handle both int and double from Supabase.
+Uninstall dan install ulang app
+Login sebagai driver dan start shipment
+Verify: Muncul permission request untuk location
+Deny permission
+Verify: Error message ditampilkan
+Grant permission
+Verify: Tracking bisa dimulai
+Expected Results:
 
-Fix: price: (map['price'] as num?)?.toDouble() ?? 0.0,
+Tracking otomatis start ketika shipment dimulai
+Location updates smooth dan real-time
+Data tersimpan ke database secara periodik
+UI responsive dan tidak lag
+Battery usage reasonable (akan dimonitor)
+User Feedback Required:
 
-Fix: stock: (map['stock'] as num?)?.toInt() ?? 0,
-
-Null Fallbacks: Ensure description defaults to an empty string '' if null.
-
-Boolean Safety: Ensure isActive (or is_active) defaults to false if null.
-
-Update lib/shared/repositories/product_repository.dart:
-
-Wrap the getAllProducts (or fetchProducts) logic in a try-catch block.
-
-Add debugPrint('Error fetching products: $e'); so we can see the exact error in the console.
-
-Ensure the .select() query matches the table schema.
-
-Update lib/features/admin/pages/admin_products_page.dart:
-
-In the ListView.builder:
-
-Check for nulls before displaying text.
-
-Example: Text(product.name ?? 'No Name')
-
-Example: Text('Stok: ${product.stock ?? 0}')
-
-Add a logic to show a friendly "Gagal memuat produk" message if the list is null/error, instead of a red screen.
-
-Deliverables:
-
-A robust Product model that handles null/numeric types safely.
-
-A crash-free AdminProductsPage.
+Apakah interval 30 detik untuk save location sudah sesuai?
+Apakah perlu fitur background tracking ketika app di-minimize?
+Apakah perlu notifikasi ketika mendekati destination?

@@ -406,7 +406,7 @@ class _ManageOrdersScreenState extends ConsumerState<ManageOrdersScreen> {
                         ),
                       ),
                       Text(
-                        '${item['quantity'] ?? 0} ${item['satuan'] ?? 'kg'}',
+                        '${item['quantity'] ?? 0} ${item['satuan'] ?? 'Ton'}',
                         style: TextStyle(
                           fontSize: 13.sp,
                           fontWeight: FontWeight.w500,

@@ -53,6 +53,7 @@ CREATE TABLE public.order_details (
   subtotal numeric NOT NULL,
   notes text,
   created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT order_details_pkey PRIMARY KEY (id),
   CONSTRAINT order_details_order_id_fkey FOREIGN KEY (order_id) REFERENCES public.orders(id),
   CONSTRAINT order_details_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id)
@@ -74,6 +75,9 @@ CREATE TABLE public.orders (
   delivery_date timestamp with time zone,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
+  completed_at timestamp with time zone,
+  confirmed_at timestamp with time zone,
+  notes text,
   CONSTRAINT orders_pkey PRIMARY KEY (id),
   CONSTRAINT orders_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES public.profiles(id)
 );
@@ -89,6 +93,7 @@ CREATE TABLE public.products (
   is_active boolean DEFAULT true,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
+  unit character varying DEFAULT 'ton'::character varying,
   CONSTRAINT products_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.profiles (

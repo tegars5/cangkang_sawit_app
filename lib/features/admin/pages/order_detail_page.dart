@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../shared/models/models.dart';
 import '../../../shared/repositories/order_repository.dart';
 import '../../../widgets/common/status_badge.dart';
+import 'prepare_shipment_page.dart';
 
 class OrderDetailPage extends StatefulWidget {
   // Menerima object Order langsung, bukan Map
@@ -142,7 +143,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                       'Produk Sawit',
                     ), // Bisa diganti item.productName jika ada
                     subtitle: Text(
-                      '${item.requestedQuantity} Kg x ${currencyFormat.format(item.unitPrice)}',
+                      '${item.requestedQuantity} Ton x ${currencyFormat.format(item.unitPrice)}',
                     ),
                     trailing: Text(currencyFormat.format(item.subtotal)),
                   ),
@@ -179,11 +180,22 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                 child: ElevatedButton(
                   onPressed: _isUpdating
                       ? null
-                      : () {
-                          // Di sini nanti logic Assign Driver (Masuk ke Shipment)
-                          _updateStatus(
-                            'shipped',
-                          ); // Sementara langsung shipped dulu
+                      : () async {
+                          // Navigate to prepare shipment page
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  PrepareShipmentPage(order: order),
+                            ),
+                          );
+
+                          // If shipment was successfully assigned, refresh order data
+                          if (result == true && mounted) {
+                            setState(() {
+                              // Trigger rebuild to show updated status
+                            });
+                          }
                         },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.orange,

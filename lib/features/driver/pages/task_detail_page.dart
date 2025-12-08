@@ -35,7 +35,16 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
         actions: [
           IconButton(
             onPressed: () {
-              // TODO: Show navigation/maps
+              // Navigate to tracking page if task has shipment data
+              // For now, show a message - will be implemented with actual shipment data
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Fitur tracking tersedia saat pengiriman dimulai',
+                  ),
+                  backgroundColor: Colors.orange,
+                ),
+              );
             },
             icon: Icon(
               Icons.navigation_outlined,

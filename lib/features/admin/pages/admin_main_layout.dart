@@ -30,7 +30,7 @@ class AdminMainLayout extends ConsumerWidget {
       bottomNavigationBar: AdminBottomNavBar(
         currentIndex: currentIndex,
         onTap: (index) {
-          ref.read(adminTabIndexProvider.notifier).state = index;
+          ref.read(adminTabIndexProvider.notifier).setIndex(index);
         },
       ),
     );

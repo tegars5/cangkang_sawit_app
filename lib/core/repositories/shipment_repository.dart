@@ -56,7 +56,7 @@ class ShipmentRepository {
       // Build query - use dynamic to avoid type issues
       dynamic queryBuilder = _supabase.from(_tableName).select('''
             *,
-            driver:driver_id(id, full_name, phone_number, avatar_url),
+            driver:driver_id(id, full_name, phone, avatar_url),
             order:order_id(id, customer_name, customer_address, total_amount, status)
           ''');
 
@@ -106,7 +106,7 @@ class ShipmentRepository {
           .from(_tableName)
           .select('''
             *,
-            driver:driver_id(id, full_name, phone_number, avatar_url),
+            driver:driver_id(id, full_name, phone, avatar_url),
             order:order_id(id, customer_name, customer_address, total_amount, status)
           ''')
           .inFilter('status', ['assigned', 'picked_up'])
@@ -132,7 +132,7 @@ class ShipmentRepository {
           .from(_tableName)
           .select('''
             *,
-            driver:driver_id(id, full_name, phone_number, avatar_url),
+            driver:driver_id(id, full_name, phone, avatar_url),
             order:order_id(id, customer_name, customer_address, total_amount, status)
           ''')
           .eq('id', shipmentId)
@@ -166,7 +166,7 @@ class ShipmentRepository {
         'delivery_note_url': deliveryNoteUrl,
         'notes': notes,
         'pickup_date': pickupDate?.toIso8601String(),
-        'status': 'assigned',
+        'status': 'pending',
         'created_at': DateTime.now().toIso8601String(),
         'updated_at': DateTime.now().toIso8601String(),
       };
@@ -174,11 +174,7 @@ class ShipmentRepository {
       final response = await _supabase
           .from(_tableName)
           .insert(shipmentData)
-          .select('''
-            *,
-            driver:driver_id(id, full_name, phone_number, avatar_url),
-            order:order_id(id, customer_name, customer_address, total_amount, status)
-          ''')
+          .select()
           .single();
 
       final shipment = Shipment.fromJson(response);
@@ -224,7 +220,7 @@ class ShipmentRepository {
           .eq('id', shipmentId)
           .select('''
             *,
-            driver:driver_id(id, full_name, phone_number, avatar_url),
+            driver:driver_id(id, full_name, phone, avatar_url),
             order:order_id(id, customer_name, customer_address, total_amount, status)
           ''')
           .single();
@@ -282,7 +278,7 @@ class ShipmentRepository {
           .eq('id', shipmentId)
           .select('''
             *,
-            driver:driver_id(id, full_name, phone_number, avatar_url),
+            driver:driver_id(id, full_name, phone, avatar_url),
             order:order_id(id, customer_name, customer_address, total_amount, status)
           ''')
           .single();

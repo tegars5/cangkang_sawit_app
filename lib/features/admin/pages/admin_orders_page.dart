@@ -213,7 +213,7 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
                                       MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
-                                      '${order.totalQuantity} Kg',
+                                      '${order.totalQuantity} Ton',
                                       style: TextStyle(
                                         fontWeight: FontWeight.w500,
                                         fontSize: 14.sp,

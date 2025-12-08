@@ -267,7 +267,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
             if (shipment?.assignedAt != null)
               _buildInfoRow(
                 'Tanggal Ditugaskan',
-                _formatDateTime(shipment!.assignedAt),
+                _formatDateTime(shipment!.assignedAt ?? shipment!.createdAt),
               ),
           ],
         ),
