@@ -40,7 +40,7 @@ class RegistrationController extends Notifier<RegistrationState> {
     required String email,
     required String password,
     required String fullName,
-    required String role, // 'Mitra Bisnis' or 'Logistik'
+    required String role, // 'Mitra Bisnis' or 'driver'
     String? companyName,
     String? jobTitle,
     String? phone,
@@ -56,8 +56,8 @@ class RegistrationController extends Notifier<RegistrationState> {
 
       if (role == 'Mitra Bisnis') {
         roleId = 2;
-      } else if (role == 'Logistik') {
-        roleId = 3;
+      } else if (role == 'driver') {
+        roleId = 12;
       } else {
         roleId = 2; // Default to mitra
       }

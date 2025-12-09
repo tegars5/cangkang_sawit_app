@@ -8,7 +8,7 @@ enum UserRole {
   mitra(2, 'Mitra Bisnis'),
 
   /// Driver/Logistik role (role_id = 3)
-  driver(3, 'Driver');
+  driver(12, 'Driver');
 
   const UserRole(this.id, this.displayName);
 
@@ -25,7 +25,7 @@ enum UserRole {
         return UserRole.admin;
       case 2:
         return UserRole.mitra;
-      case 3:
+      case 12:
         return UserRole.driver;
       default:
         throw ArgumentError('Invalid role ID: $id');

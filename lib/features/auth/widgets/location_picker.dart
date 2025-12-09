@@ -1,32 +1,39 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 
-/// Location picker widget with Google Maps
+/// Location picker widget with Google Maps and auto-detect current location
 class LocationPicker extends StatefulWidget {
   final LatLng initialLocation;
   final ValueChanged<LatLng> onLocationChanged;
+  final ValueChanged<String>? onAddressChanged;
 
   const LocationPicker({
     super.key,
     required this.initialLocation,
     required this.onLocationChanged,
+    this.onAddressChanged,
   });
 
   @override
-  State<LocationPicker> createState() => _LocationPickerState();
+  State<LocationPicker> createState() => LocationPickerState();
 }
 
-class _LocationPickerState extends State<LocationPicker> {
+class LocationPickerState extends State<LocationPicker> {
   late LatLng _selectedLocation;
   late Set<Marker> _markers;
   GoogleMapController? _mapController;
+  String _selectedAddress = 'Memuat alamat...';
+  bool _isLoadingLocation = false;
 
   @override
   void initState() {
     super.initState();
     _selectedLocation = widget.initialLocation;
     _updateMarker();
+    _getAddressFromLatLng(_selectedLocation);
   }
 
   @override
@@ -35,22 +42,149 @@ class _LocationPickerState extends State<LocationPicker> {
     super.dispose();
   }
 
+  /// Public method to update location from parent widget
+  void updateLocation(LatLng newLocation) {
+    setState(() {
+      _selectedLocation = newLocation;
+      _updateMarker();
+    });
+
+    // Animate camera to new location
+    _mapController?.animateCamera(CameraUpdate.newLatLngZoom(newLocation, 15));
+
+    // Get address for new location
+    _getAddressFromLatLng(newLocation);
+
+    // Notify parent
+    widget.onLocationChanged(newLocation);
+  }
+
   void _updateMarker() {
-    _markers = {
-      Marker(
-        markerId: const MarkerId('selected_location'),
-        position: _selectedLocation,
-        infoWindow: const InfoWindow(title: 'Lokasi Dipilih'),
-      ),
-    };
+    setState(() {
+      _markers = {
+        Marker(
+          markerId: const MarkerId('selected_location'),
+          position: _selectedLocation,
+          infoWindow: InfoWindow(title: _selectedAddress),
+        ),
+      };
+    });
+  }
+
+  Future<void> _getAddressFromLatLng(LatLng location) async {
+    try {
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+        location.latitude,
+        location.longitude,
+      );
+
+      if (placemarks.isNotEmpty) {
+        Placemark place = placemarks[0];
+        String address = '';
+
+        if (place.street != null && place.street!.isNotEmpty) {
+          address += place.street!;
+        }
+        if (place.subLocality != null && place.subLocality!.isNotEmpty) {
+          address += address.isEmpty
+              ? place.subLocality!
+              : ', ${place.subLocality}';
+        }
+        if (place.locality != null && place.locality!.isNotEmpty) {
+          address += address.isEmpty ? place.locality! : ', ${place.locality}';
+        }
+        if (place.administrativeArea != null &&
+            place.administrativeArea!.isNotEmpty) {
+          address += address.isEmpty
+              ? place.administrativeArea!
+              : ', ${place.administrativeArea}';
+        }
+        if (place.country != null && place.country!.isNotEmpty) {
+          address += address.isEmpty ? place.country! : ', ${place.country}';
+        }
+
+        setState(() {
+          _selectedAddress = address.isEmpty
+              ? 'Alamat tidak ditemukan'
+              : address;
+        });
+
+        if (widget.onAddressChanged != null) {
+          widget.onAddressChanged!(_selectedAddress);
+        }
+
+        _updateMarker();
+      }
+    } catch (e) {
+      setState(() {
+        _selectedAddress = 'Gagal mendapatkan alamat';
+      });
+    }
   }
 
   void _onMapTap(LatLng location) {
     setState(() {
       _selectedLocation = location;
+      _selectedAddress = 'Memuat alamat...';
       _updateMarker();
     });
     widget.onLocationChanged(location);
+    _getAddressFromLatLng(location);
+  }
+
+  Future<void> _getCurrentLocation() async {
+    setState(() {
+      _isLoadingLocation = true;
+    });
+
+    try {
+      // Check permission
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          throw 'Izin lokasi ditolak';
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        throw 'Izin lokasi ditolak permanen. Silakan aktifkan di pengaturan.';
+      }
+
+      // Get current position
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      LatLng currentLocation = LatLng(position.latitude, position.longitude);
+
+      setState(() {
+        _selectedLocation = currentLocation;
+        _selectedAddress = 'Memuat alamat...';
+        _updateMarker();
+      });
+
+      // Animate camera to current location
+      _mapController?.animateCamera(
+        CameraUpdate.newLatLngZoom(currentLocation, 15),
+      );
+
+      widget.onLocationChanged(currentLocation);
+      await _getAddressFromLatLng(currentLocation);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal mendapatkan lokasi: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      setState(() {
+        _isLoadingLocation = false;
+      });
+    }
   }
 
   @override
@@ -58,15 +192,22 @@ class _LocationPickerState extends State<LocationPicker> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Pilih Lokasi Perusahaan',
-          style: TextStyle(
-            fontSize: 14.sp,
-            fontWeight: FontWeight.w600,
-            color: Colors.grey[700],
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Pilih Lokasi Perusahaan',
+              style: TextStyle(
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[700],
+              ),
+            ),
+          ],
         ),
-        SizedBox(height: 8.h),
+        SizedBox(height: 12.h),
+
+        // Map
         Container(
           height: 300.h,
           decoration: BoxDecoration(
@@ -84,14 +225,15 @@ class _LocationPickerState extends State<LocationPicker> {
             onMapCreated: (controller) {
               _mapController = controller;
             },
-            myLocationButtonEnabled: true,
+            myLocationButtonEnabled: false,
             myLocationEnabled: true,
             zoomControlsEnabled: true,
+            mapToolbarEnabled: false,
           ),
         ),
         SizedBox(height: 8.h),
         Text(
-          'Tap pada peta untuk memilih lokasi',
+          'Tap pada peta untuk memilih lokasi perusahaan',
           style: TextStyle(
             fontSize: 12.sp,
             color: Colors.grey[600],

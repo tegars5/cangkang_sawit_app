@@ -9,6 +9,11 @@
         android:label="cangkang_sawit_app"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        
+        <!-- Google Maps API Key -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="AIzaSyCQGOdJaoxRv0vV5IPz6Oh9v-X1Snk3LP8"/>
         <activity
             android:name=".MainActivity"
             android:exported="true"

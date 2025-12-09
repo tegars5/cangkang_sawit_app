@@ -1,19 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'dart:async';
-import 'package:geolocator/geolocator.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:intl/intl.dart';
 
-import '../../core/services/gps_service.dart';
-import '../../shared/repositories/location_repository.dart';
-import '../../shared/models/driver_location.dart';
 import '../../core/repositories/shipment_repository.dart';
 import '../../shared/models/shipment.dart';
-import '../shipment/delivery_confirmation_screen.dart';
-import '../../core/helpers/auth_helper.dart';
-import '../../debug/google_maps_test_screen.dart';
-import 'pages/driver_tracking_page.dart';
+import '../../widgets/common/logout_button.dart';
+import 'pages/task_detail_page.dart';
 
 class DriverDashboardScreen extends ConsumerStatefulWidget {
   const DriverDashboardScreen({super.key});
@@ -24,571 +18,409 @@ class DriverDashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
-  final GpsService _gpsService = GpsService();
-  final LocationRepository _locationRepository = LocationRepository();
-
-  bool _isTrackingLocation = false;
-  DriverLocation? _currentLocation;
-  String? _trackingError;
-  Timer? _locationTimer;
-
-  // Real shipment data
   List<Shipment> _activeShipments = [];
-  StreamSubscription<List<Shipment>>? _shipmentsSubscription;
+  List<Shipment> _pendingShipments = [];
+  List<Shipment> _completedToday = [];
+  bool _isLoading = true;
+  String? _error;
 
-  // Current user - replace with actual authentication
-  final String _currentDriverId = 'driver_001';
+  // Stats
+  int _totalDeliveriesToday = 0;
+  int _completedDeliveries = 0;
+  String _workingTime = '0j 0m';
 
   @override
   void initState() {
     super.initState();
-    _initializeLocation();
-    _initializeShipments();
+    _loadDashboardData();
   }
 
-  Future<void> _initializeShipments() async {
-    await _loadDriverShipments();
-    _setupShipmentsSubscription();
-  }
-
-  Future<void> _loadDriverShipments() async {
-    try {
-      final shipments = await ShipmentRepository.getDriverShipments(
-        _currentDriverId,
-      );
-      if (mounted) {
-        setState(() {
-          _activeShipments = shipments
-              .where((s) => s.status == 'assigned' || s.status == 'picked_up')
-              .toList();
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal memuat data pengiriman: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  void _setupShipmentsSubscription() {
-    _shipmentsSubscription = ShipmentRepository.shipmentsStream.listen((
-      allShipments,
-    ) {
-      if (mounted) {
-        setState(() {
-          _activeShipments = allShipments
-              .where(
-                (s) =>
-                    s.driverId == _currentDriverId &&
-                    (s.status == 'assigned' || s.status == 'picked_up'),
-              )
-              .toList();
-        });
-      }
+  Future<void> _loadDashboardData() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
     });
-  }
 
-  @override
-  void dispose() {
-    _gpsService.stopTracking();
-    _locationTimer?.cancel();
-    _shipmentsSubscription?.cancel();
-    super.dispose();
-  }
-
-  Future<void> _initializeLocation() async {
     try {
-      final position = await _gpsService.getCurrentPosition();
-      if (mounted) {
-        setState(() {
-          _currentLocation = DriverLocation(
-            id: 'temp-${DateTime.now().millisecondsSinceEpoch}',
-            driverId: 'current-driver', // Replace with actual driver ID
-            latitude: position.latitude,
-            longitude: position.longitude,
-            accuracy: position.accuracy,
-            speed: position.speed,
-            heading: position.heading,
-            timestamp: DateTime.now(),
-            createdAt: DateTime.now(),
-          );
-        });
-      }
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) throw 'User not authenticated';
+
+      // Get all shipments for this driver
+      final allShipments = await ShipmentRepository.getDriverShipments(userId);
+
+      // Filter by status
+      final active = allShipments
+          .where((s) => s.status == 'in_transit')
+          .toList();
+
+      final pending = allShipments.where((s) => s.status == 'pending').toList();
+
+      // Get completed today
+      final now = DateTime.now();
+      final todayStart = DateTime(now.year, now.month, now.day);
+      final completed = allShipments
+          .where(
+            (s) =>
+                s.status == 'completed' &&
+                s.completedAt != null &&
+                s.completedAt!.isAfter(todayStart),
+          )
+          .toList();
+
+      setState(() {
+        _activeShipments = active;
+        _pendingShipments = pending;
+        _completedToday = completed;
+        _totalDeliveriesToday =
+            pending.length + active.length + completed.length;
+        _completedDeliveries = completed.length;
+        _isLoading = false;
+      });
+
+      _calculateWorkingTime();
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _trackingError = 'Gagal mendapatkan lokasi: $e';
-        });
-      }
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
     }
   }
 
-  void _toggleLocationTracking() async {
-    if (_isTrackingLocation) {
-      _stopLocationTracking();
-    } else {
-      _startLocationTracking();
+  void _calculateWorkingTime() {
+    if (_completedToday.isEmpty && _activeShipments.isEmpty) {
+      setState(() => _workingTime = '0j 0m');
+      return;
     }
-  }
 
-  void _startLocationTracking() async {
-    try {
-      await _gpsService.startTracking(
-        onLocationUpdate: _onLocationUpdate,
-        intervalSeconds: 30,
-      );
+    DateTime? firstStart;
+    DateTime? lastComplete = DateTime.now();
 
-      // Also save location every 30 seconds
-      _locationTimer = Timer.periodic(Duration(seconds: 30), (_) {
-        if (_currentLocation != null) {
-          _saveCurrentLocation();
+    // Find earliest start time
+    for (var shipment in [..._activeShipments, ..._completedToday]) {
+      if (shipment.startedAt != null) {
+        if (firstStart == null || shipment.startedAt!.isBefore(firstStart)) {
+          firstStart = shipment.startedAt;
         }
-      });
-
-      setState(() {
-        _isTrackingLocation = true;
-        _trackingError = null;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('GPS tracking dimulai'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } catch (e) {
-      setState(() {
-        _trackingError = 'Gagal memulai tracking: $e';
-      });
+      }
     }
-  }
 
-  void _stopLocationTracking() {
-    _gpsService.stopTracking();
-    _locationTimer?.cancel();
-
-    setState(() {
-      _isTrackingLocation = false;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('GPS tracking dihentikan'),
-        backgroundColor: Colors.orange,
-      ),
-    );
-  }
-
-  void _onLocationUpdate(Position position) {
-    setState(() {
-      _currentLocation = DriverLocation(
-        id: 'temp-${DateTime.now().millisecondsSinceEpoch}',
-        driverId: 'current-driver', // Replace with actual driver ID
-        latitude: position.latitude,
-        longitude: position.longitude,
-        accuracy: position.accuracy,
-        speed: position.speed,
-        heading: position.heading,
-        timestamp: DateTime.now(),
-        createdAt: DateTime.now(),
-      );
-      _trackingError = null;
-    });
-  }
-
-  Future<void> _saveCurrentLocation() async {
-    if (_currentLocation == null) return;
-
-    try {
-      await _locationRepository.saveLocation(
-        driverId: _currentLocation!.driverId,
-        latitude: _currentLocation!.latitude,
-        longitude: _currentLocation!.longitude,
-
-        speed: _currentLocation!.speed,
-        bearing: _currentLocation!.bearing,
-        shipmentId: _activeShipments.isNotEmpty
-            ? _activeShipments[0].id
-            : 'no-active-shipment',
-      );
-    } catch (e) {
-      print('Error saving location: $e');
+    if (firstStart != null) {
+      final duration = lastComplete.difference(firstStart);
+      final hours = duration.inHours;
+      final minutes = duration.inMinutes % 60;
+      setState(() => _workingTime = '${hours}j ${minutes}m');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: Text('Driver Dashboard'),
-        backgroundColor: Theme.of(context).primaryColor,
+        title: const Text('Dashboard Driver'),
+        backgroundColor: const Color(0xFF1B5E20),
         foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: Icon(_isTrackingLocation ? Icons.gps_fixed : Icons.gps_off),
-            onPressed: _toggleLocationTracking,
-            tooltip: _isTrackingLocation ? 'Stop Tracking' : 'Start Tracking',
-          ),
-          AuthHelper.buildLogoutButton(context),
-        ],
+        automaticallyImplyLeading: false,
+        actions: [LogoutButton.icon()],
       ),
       body: RefreshIndicator(
-        onRefresh: _initializeLocation,
-        child: SingleChildScrollView(
-          physics: AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.all(16.w),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Status Card
-              _buildStatusCard(),
-              SizedBox(height: 16.h),
+        onRefresh: _loadDashboardData,
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _error != null
+            ? _buildErrorState()
+            : SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.all(16.w),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header with driver info
+                    _buildHeader(),
+                    SizedBox(height: 20.h),
 
-              // Current Location Card
-              _buildLocationCard(),
-              SizedBox(height: 16.h),
+                    // Active Shipment Card (if any)
+                    if (_activeShipments.isNotEmpty) ...[
+                      _buildActiveShipmentCard(_activeShipments.first),
+                      SizedBox(height: 20.h),
+                    ],
 
-              // Active Shipments
-              _buildActiveShipments(),
-              SizedBox(height: 16.h),
+                    // Today's Stats
+                    _buildTodayStats(),
+                    SizedBox(height: 20.h),
 
-              // Quick Actions
-              _buildQuickActions(),
-            ],
+                    // Pending Shipments
+                    if (_pendingShipments.isNotEmpty) ...[
+                      _buildSectionHeader(
+                        'Tugas Menunggu',
+                        _pendingShipments.length,
+                      ),
+                      SizedBox(height: 12.h),
+                      _buildPendingList(),
+                      SizedBox(height: 20.h),
+                    ],
+
+                    // Completed Today
+                    if (_completedToday.isNotEmpty) ...[
+                      _buildSectionHeader(
+                        'Selesai Hari Ini',
+                        _completedToday.length,
+                      ),
+                      SizedBox(height: 12.h),
+                      _buildCompletedList(),
+                    ],
+
+                    // Empty state
+                    if (_activeShipments.isEmpty &&
+                        _pendingShipments.isEmpty &&
+                        _completedToday.isEmpty)
+                      _buildEmptyState(),
+                  ],
+                ),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    final user = Supabase.instance.client.auth.currentUser;
+    final userName = user?.userMetadata?['full_name'] ?? 'Driver';
+
+    return Container(
+      padding: EdgeInsets.all(16.w),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12.r),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
-        ),
+        ],
       ),
-    );
-  }
-
-  Widget _buildStatusCard() {
-    return Card(
-      child: Padding(
-        padding: EdgeInsets.all(16.w),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  _isTrackingLocation
-                      ? Icons.online_prediction
-                      : Icons.offline_pin,
-                  color: _isTrackingLocation ? Colors.green : Colors.grey,
-                ),
-                SizedBox(width: 8.w),
-                Text(
-                  _isTrackingLocation ? 'Online - Tracking Active' : 'Offline',
-                  style: TextStyle(
-                    fontSize: 18.sp,
-                    fontWeight: FontWeight.bold,
-                    color: _isTrackingLocation ? Colors.green : Colors.grey,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 8.h),
-            if (_trackingError != null)
-              Text(
-                _trackingError!,
-                style: TextStyle(color: Colors.red, fontSize: 14.sp),
-              ),
-            if (_activeShipments.isNotEmpty) ...[
-              SizedBox(height: 8.h),
-              Text(
-                'Active Deliveries: ${_activeShipments.length}',
-                style: TextStyle(fontSize: 14.sp, color: Colors.grey[600]),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLocationCard() {
-    return Card(
-      child: Padding(
-        padding: EdgeInsets.all(16.w),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.my_location, color: Theme.of(context).primaryColor),
-                SizedBox(width: 8.w),
-                Text(
-                  'Current Location',
-                  style: TextStyle(
-                    fontSize: 18.sp,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 12.h),
-            if (_currentLocation != null) ...[
-              _buildLocationDetail(
-                'Coordinates',
-                _currentLocation!.formattedCoordinates,
-              ),
-              _buildLocationDetail(
-                'Accuracy',
-                _currentLocation!.formattedAccuracy,
-              ),
-              _buildLocationDetail('Speed', _currentLocation!.formattedSpeed),
-              _buildLocationDetail(
-                'Last Update',
-                _currentLocation!.formattedDateTime,
-              ),
-            ] else
-              Text(
-                'No location data available',
-                style: TextStyle(color: Colors.grey[600]),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLocationDetail(String label, String value) {
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: 4.h),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: TextStyle(fontSize: 14.sp, color: Colors.grey[600]),
+          CircleAvatar(
+            radius: 30.r,
+            backgroundColor: Colors.white,
+            child: Icon(
+              Icons.person,
+              size: 35.sp,
+              color: const Color(0xFF1B5E20),
+            ),
           ),
-          Text(
-            value,
-            style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w500),
+          SizedBox(width: 16.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  userName,
+                  style: TextStyle(
+                    fontSize: 18.sp,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                SizedBox(height: 4.h),
+                Row(
+                  children: [
+                    Container(
+                      width: 8.w,
+                      height: 8.h,
+                      decoration: const BoxDecoration(
+                        color: Colors.greenAccent,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    SizedBox(width: 6.w),
+                    Text(
+                      'Online',
+                      style: TextStyle(fontSize: 14.sp, color: Colors.white70),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                DateFormat('HH:mm').format(DateTime.now()),
+                style: TextStyle(
+                  fontSize: 20.sp,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              Text(
+                DateFormat('dd MMM yyyy').format(DateTime.now()),
+                style: TextStyle(fontSize: 12.sp, color: Colors.white70),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildActiveShipments() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Active Shipments',
-          style: TextStyle(fontSize: 20.sp, fontWeight: FontWeight.bold),
-        ),
-        SizedBox(height: 12.h),
-        if (_activeShipments.isEmpty)
-          Card(
-            child: Padding(
-              padding: EdgeInsets.all(24.w),
-              child: Center(
+  Widget _buildActiveShipmentCard(Shipment shipment) {
+    return Container(
+      padding: EdgeInsets.all(16.w),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(color: Colors.orange.shade200, width: 2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(8.w),
+                decoration: BoxDecoration(
+                  color: Colors.orange,
+                  borderRadius: BorderRadius.circular(8.r),
+                ),
+                child: Icon(
+                  Icons.local_shipping,
+                  color: Colors.white,
+                  size: 24.sp,
+                ),
+              ),
+              SizedBox(width: 12.w),
+              Expanded(
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      Icons.local_shipping_outlined,
-                      size: 48.sp,
-                      color: Colors.grey,
-                    ),
-                    SizedBox(height: 8.h),
                     Text(
-                      'No active shipments',
+                      'PENGIRIMAN AKTIF',
+                      style: TextStyle(
+                        fontSize: 12.sp,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orange.shade900,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    Text(
+                      shipment.order?.orderNumber ?? 'N/A',
                       style: TextStyle(
                         fontSize: 16.sp,
-                        color: Colors.grey[600],
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
                       ),
                     ),
                   ],
                 ),
               ),
-            ),
-          )
-        else
-          ...(_activeShipments
-              .map((shipment) => _buildShipmentCard(shipment))
-              .toList()),
-      ],
-    );
-  }
-
-  Widget _buildShipmentCard(Shipment shipment) {
-    Color statusColor = Colors.blue;
-    String statusText = 'Unknown';
-
-    switch (shipment.status) {
-      case 'assigned':
-        statusColor = Colors.orange;
-        statusText = 'Ditugaskan';
-        break;
-      case 'picked_up':
-        statusColor = Colors.blue;
-        statusText = 'Dalam Perjalanan';
-        break;
-      case 'delivered':
-        statusColor = Colors.green;
-        statusText = 'Terkirim';
-        break;
-      case 'cancelled':
-        statusColor = Colors.red;
-        statusText = 'Dibatalkan';
-        break;
-    }
-
-    return Card(
-      margin: EdgeInsets.symmetric(vertical: 4.h),
-      child: Padding(
-        padding: EdgeInsets.all(16.w),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Order #${shipment.order?.id ?? 'N/A'}',
-                  style: TextStyle(
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
-                  decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12.r),
-                    border: Border.all(color: statusColor),
-                  ),
-                  child: Text(
-                    statusText,
-                    style: TextStyle(color: statusColor, fontSize: 12.sp),
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 8.h),
-            Text(
-              'No. Surat Jalan: ${shipment.deliveryNoteNumber}',
-              style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w500),
-            ),
-            SizedBox(height: 4.h),
-            if (shipment.order?.customerName != null) ...[
-              Text(
-                'Pelanggan: ${shipment.order!.customerName}',
-                style: TextStyle(fontSize: 14.sp, color: Colors.grey[700]),
-              ),
-              SizedBox(height: 4.h),
             ],
-            Text(
-              'Tujuan: ${shipment.destinationAddress}',
-              style: TextStyle(fontSize: 14.sp, color: Colors.grey[600]),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            if (shipment.pickupDate != null) ...[
-              SizedBox(height: 4.h),
-              Text(
-                'Tanggal Pickup: ${shipment.formattedPickupDate}',
-                style: TextStyle(fontSize: 12.sp, color: Colors.grey[600]),
+          ),
+          SizedBox(height: 16.h),
+
+          // Destination
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.location_on, color: Colors.red, size: 20.sp),
+              SizedBox(width: 8.w),
+              Expanded(
+                child: Text(
+                  shipment.order?.deliveryAddress ?? 'Alamat tidak tersedia',
+                  style: TextStyle(fontSize: 14.sp, color: Colors.black87),
+                ),
               ),
             ],
-            SizedBox(height: 12.h),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () => _showShipmentDetails(shipment),
-                    icon: Icon(Icons.info_outline, size: 16.sp),
-                    label: Text('Detail'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.grey[100],
-                      foregroundColor: Colors.grey[700],
-                    ),
+          ),
+          SizedBox(height: 16.h),
+
+          // Action Button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => TaskDetailPage(taskData: shipment.toJson()),
                   ),
+                ).then((_) => _loadDashboardData());
+              },
+              icon: const Icon(Icons.navigation),
+              label: const Text('Lihat Detail & Navigasi'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(vertical: 14.h),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8.r),
                 ),
-                SizedBox(width: 8.w),
-                if (shipment.canStart)
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () => _startShipment(shipment),
-                      icon: Icon(Icons.play_arrow, size: 16.sp),
-                      label: Text('Mulai'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-                  )
-                else if (shipment.inProgress)
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () => _completeDelivery(shipment),
-                      icon: Icon(Icons.check_circle_outline, size: 16.sp),
-                      label: Text('Selesai'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Theme.of(context).primaryColor,
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-                  ),
-              ],
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildQuickActions() {
+  Widget _buildTodayStats() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Quick Actions',
-          style: TextStyle(fontSize: 20.sp, fontWeight: FontWeight.bold),
+          'Statistik Hari Ini',
+          style: TextStyle(
+            fontSize: 16.sp,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
         ),
         SizedBox(height: 12.h),
-        GridView.count(
-          crossAxisCount: 2,
-          shrinkWrap: true,
-          physics: NeverScrollableScrollPhysics(),
-          crossAxisSpacing: 12.w,
-          mainAxisSpacing: 12.h,
-          childAspectRatio: 1.5,
+        Row(
           children: [
-            _buildActionCard(
-              'Emergency',
-              Icons.emergency,
-              Colors.red,
-              () => _showEmergencyDialog(),
+            Expanded(
+              child: _buildStatCard(
+                'Total Tugas',
+                _totalDeliveriesToday.toString(),
+                Icons.assignment,
+                Colors.blue,
+              ),
             ),
-            _buildActionCard(
-              'Report Issue',
-              Icons.report_problem,
-              Colors.orange,
-              () => _showReportDialog(),
+            SizedBox(width: 12.w),
+            Expanded(
+              child: _buildStatCard(
+                'Selesai',
+                _completedDeliveries.toString(),
+                Icons.check_circle,
+                Colors.green,
+              ),
             ),
-            _buildActionCard(
-              'Call Support',
-              Icons.phone,
-              Colors.green,
-              () => _callSupport(),
+          ],
+        ),
+        SizedBox(height: 12.h),
+        Row(
+          children: [
+            Expanded(
+              child: _buildStatCard(
+                'Sedang Jalan',
+                _activeShipments.length.toString(),
+                Icons.local_shipping,
+                Colors.orange,
+              ),
             ),
-            _buildActionCard(
-              '🗺️ Test Maps',
-              Icons.map_outlined,
-              Colors.blue,
-              () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const GoogleMapsTestScreen(),
-                ),
+            SizedBox(width: 12.w),
+            Expanded(
+              child: _buildStatCard(
+                'Waktu Kerja',
+                _workingTime,
+                Icons.access_time,
+                Colors.purple,
               ),
             ),
           ],
@@ -597,322 +429,234 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
     );
   }
 
-  Widget _buildActionCard(
-    String title,
+  Widget _buildStatCard(
+    String label,
+    String value,
     IconData icon,
     Color color,
-    VoidCallback onTap,
   ) {
-    return InkWell(
-      onTap: onTap,
-      child: Card(
-        child: Padding(
-          padding: EdgeInsets.all(16.w),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 32.sp, color: color),
-              SizedBox(height: 8.h),
-              Text(
-                title,
-                style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w500),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _startShipment(Shipment shipment) async {
-    try {
-      await ShipmentRepository.startShipment(shipment.id);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Pengiriman dimulai'),
-            backgroundColor: Colors.green,
-          ),
-        );
-
-        // Navigate to tracking page
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => DriverTrackingPage(shipment: shipment),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal memulai pengiriman: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _completeDelivery(Shipment shipment) async {
-    final result = await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => DeliveryConfirmationScreen(shipment: shipment),
-      ),
-    );
-
-    if (result == true) {
-      // Refresh shipments after successful delivery
-      _loadDriverShipments();
-    }
-  }
-
-  void _showShipmentDetails(Shipment shipment) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Detail Pengiriman'),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildDetailRow('ID Pengiriman:', shipment.id),
-              _buildDetailRow('No. Surat Jalan:', shipment.deliveryNoteNumber),
-              if (shipment.order?.customerName != null)
-                _buildDetailRow('Pelanggan:', shipment.order!.customerName),
-              _buildDetailRow('Alamat Tujuan:', shipment.destinationAddress),
-              _buildDetailRow('Status:', _getStatusText(shipment.status)),
-              if (shipment.pickupDate != null)
-                _buildDetailRow(
-                  'Tanggal Pickup:',
-                  shipment.formattedPickupDate,
-                ),
-              if (shipment.deliveryDate != null)
-                _buildDetailRow(
-                  'Tanggal Kirim:',
-                  shipment.formattedDeliveryDate,
-                ),
-              if (shipment.notes?.isNotEmpty == true)
-                _buildDetailRow('Catatan:', shipment.notes!),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Tutup'),
+    return Container(
+      padding: EdgeInsets.all(16.w),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12.r),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildDetailRow(String label, String? value) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: 8.h),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 120.w,
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w500,
-                color: Colors.grey[700],
+          Icon(icon, color: color, size: 24.sp),
+          SizedBox(height: 8.h),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 20.sp,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          Text(
+            label,
+            style: TextStyle(fontSize: 12.sp, color: Colors.grey[600]),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, int count) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 16.sp,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        Container(
+          padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 4.h),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1B5E20).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12.r),
+          ),
+          child: Text(
+            count.toString(),
+            style: TextStyle(
+              fontSize: 14.sp,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF1B5E20),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPendingList() {
+    return Column(
+      children: _pendingShipments.map((shipment) {
+        return Container(
+          margin: EdgeInsets.only(bottom: 12.h),
+          child: _buildShipmentCard(shipment, isPending: true),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildCompletedList() {
+    return Column(
+      children: _completedToday.map((shipment) {
+        return Container(
+          margin: EdgeInsets.only(bottom: 12.h),
+          child: _buildShipmentCard(shipment, isPending: false),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildShipmentCard(Shipment shipment, {required bool isPending}) {
+    final color = isPending ? Colors.orange : Colors.green;
+
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => TaskDetailPage(taskData: shipment.toJson()),
+          ),
+        ).then((_) => _loadDashboardData());
+      },
+      child: Container(
+        padding: EdgeInsets.all(12.w),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12.r),
+          border: Border.all(color: color.withOpacity(0.3)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 5,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: EdgeInsets.all(10.w),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8.r),
+              ),
+              child: Icon(
+                isPending ? Icons.pending_actions : Icons.check_circle,
+                color: color,
+                size: 24.sp,
               ),
             ),
-          ),
-          Expanded(
-            child: Text(value ?? '-', style: TextStyle(fontSize: 14.sp)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _getStatusText(String status) {
-    switch (status) {
-      case 'assigned':
-        return 'Ditugaskan';
-      case 'picked_up':
-        return 'Dalam Perjalanan';
-      case 'delivered':
-        return 'Terkirim';
-      case 'cancelled':
-        return 'Dibatalkan';
-      default:
-        return status;
-    }
-  }
-
-  void _showEmergencyDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Emergency'),
-        content: Text('Contact emergency services?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // TODO: Implement emergency call
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: Text('Call 112'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showReportDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Report Issue'),
-        content: TextField(
-          decoration: InputDecoration(
-            hintText: 'Describe the issue...',
-            border: OutlineInputBorder(),
-          ),
-          maxLines: 3,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Issue reported successfully')),
-              );
-            },
-            child: Text('Submit'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _callSupport() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.phone, color: Colors.green),
-            SizedBox(width: 8.w),
-            Text('Hubungi Support'),
+            SizedBox(width: 12.w),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    shipment.order?.orderNumber ?? 'N/A',
+                    style: TextStyle(
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  SizedBox(height: 4.h),
+                  Text(
+                    shipment.order?.deliveryAddress ?? 'Alamat tidak tersedia',
+                    style: TextStyle(fontSize: 12.sp, color: Colors.grey[600]),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (!isPending && shipment.completedAt != null) ...[
+                    SizedBox(height: 4.h),
+                    Text(
+                      'Selesai: ${DateFormat('HH:mm').format(shipment.completedAt!)}',
+                      style: TextStyle(
+                        fontSize: 11.sp,
+                        color: Colors.grey[500],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: Colors.grey[400], size: 24.sp),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: 60.h),
+        child: Column(
           children: [
-            Text(
-              'Pilih metode kontak:',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
+            Icon(Icons.inbox_outlined, size: 80.sp, color: Colors.grey[300]),
             SizedBox(height: 16.h),
-            ListTile(
-              leading: Icon(Icons.phone, color: Colors.green),
-              title: Text('Call Center'),
-              subtitle: Text('+62-21-1234-5678'),
-              onTap: () {
-                Navigator.pop(context);
-                _makePhoneCall('+622112345678');
-              },
+            Text(
+              'Belum Ada Tugas',
+              style: TextStyle(
+                fontSize: 18.sp,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[600],
+              ),
             ),
-            ListTile(
-              leading: Icon(Icons.support_agent, color: Colors.blue),
-              title: Text('Emergency Hotline'),
-              subtitle: Text('+62-811-9999-8888'),
-              onTap: () {
-                Navigator.pop(context);
-                _makePhoneCall('+6281199998888');
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.email, color: Colors.orange),
-              title: Text('Email Support'),
-              subtitle: Text('support@fujiyama.com'),
-              onTap: () {
-                Navigator.pop(context);
-                _sendEmail('support@fujiyama.com');
-              },
+            SizedBox(height: 8.h),
+            Text(
+              'Tugas baru akan muncul di sini',
+              style: TextStyle(fontSize: 14.sp, color: Colors.grey[500]),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Batal'),
-          ),
-        ],
       ),
     );
   }
 
-  Future<void> _makePhoneCall(String phoneNumber) async {
-    try {
-      final Uri phoneUri = Uri(scheme: 'tel', path: phoneNumber);
-      if (await canLaunchUrl(phoneUri)) {
-        await launchUrl(phoneUri);
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Tidak dapat membuka aplikasi telepon'),
-              backgroundColor: Colors.red,
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.all(24.w),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 64.sp, color: Colors.red[300]),
+            SizedBox(height: 16.h),
+            Text(
+              'Gagal Memuat Data',
+              style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.w600),
             ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-        );
-      }
-    }
-  }
-
-  Future<void> _sendEmail(String email) async {
-    try {
-      final Uri emailUri = Uri(
-        scheme: 'mailto',
-        path: email,
-        query: 'subject=Bantuan Driver&body=Halo, saya membutuhkan bantuan...',
-      );
-      if (await canLaunchUrl(emailUri)) {
-        await launchUrl(emailUri);
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Tidak dapat membuka aplikasi email'),
-              backgroundColor: Colors.red,
+            SizedBox(height: 8.h),
+            Text(
+              _error ?? 'Terjadi kesalahan',
+              style: TextStyle(fontSize: 14.sp, color: Colors.grey[600]),
+              textAlign: TextAlign.center,
             ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-        );
-      }
-    }
+            SizedBox(height: 24.h),
+            ElevatedButton(
+              onPressed: _loadDashboardData,
+              child: const Text('Coba Lagi'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

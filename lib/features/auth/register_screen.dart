@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import 'controllers/registration_controller.dart';
 import 'widgets/registration_form_fields.dart';
 import 'widgets/location_picker.dart';
@@ -22,6 +24,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _step1FormKey = GlobalKey<FormState>();
   final _step2FormKey = GlobalKey<FormState>();
+  final _locationPickerKey = GlobalKey<LocationPickerState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -34,7 +37,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   int _currentStep = 0;
   LatLng _selectedLocation = const LatLng(-6.2088, 106.8456); // Default Jakarta
 
-  final List<String> _roles = ['Mitra Bisnis', 'Logistik'];
+  final List<String> _roles = ['Mitra Bisnis', 'driver'];
 
   @override
   void dispose() {
@@ -113,7 +116,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 if (_selectedRole == 'Mitra Bisnis')
                   _buildMitraStepper(registrationState)
                 else
-                  _buildLogistikForm(registrationState),
+                  _buildForm(registrationState),
               ],
             ),
           ),
@@ -145,9 +148,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   Widget _buildMitraStepper(RegistrationState state) {
     return Stepper(
+      physics: const ClampingScrollPhysics(),
       currentStep: _currentStep,
       onStepContinue: () {
-        if (_currentStep < 2) {
+        if (_currentStep < 1) {
           if (_validateCurrentStep()) {
             setState(() {
               _currentStep++;
@@ -189,7 +193,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           ),
                         )
                       : Text(
-                          _currentStep == 2 ? 'Daftar' : 'Lanjut',
+                          _currentStep == 1 ? 'Daftar' : 'Lanjut',
                           style: TextStyle(
                             fontSize: 16.sp,
                             fontWeight: FontWeight.w600,
@@ -220,16 +224,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           state: _currentStep > 0 ? StepState.complete : StepState.indexed,
         ),
         Step(
-          title: const Text('Informasi Perusahaan'),
+          title: const Text('Informasi Perusahaan & Lokasi'),
           content: _buildCompanyInfoStep(),
           isActive: _currentStep >= 1,
           state: _currentStep > 1 ? StepState.complete : StepState.indexed,
-        ),
-        Step(
-          title: const Text('Lokasi'),
-          content: _buildLocationStep(),
-          isActive: _currentStep >= 2,
-          state: _currentStep > 2 ? StepState.complete : StepState.indexed,
         ),
       ],
     );
@@ -322,16 +320,64 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               return null;
             },
           ),
-          RegistrationTextField(
-            controller: _addressController,
-            label: 'Alamat Perusahaan',
-            icon: Icons.location_on,
-            maxLines: 3,
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Alamat harus diisi';
-              }
-              return null;
+          // Address field with location button
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              RegistrationTextField(
+                controller: _addressController,
+                label: 'Alamat Perusahaan (akan terisi otomatis dari peta)',
+                icon: Icons.location_on,
+                maxLines: 3,
+                validator: (value) {
+                  // Optional - will be auto-filled from location picker
+                  return null;
+                },
+              ),
+              SizedBox(height: 1.h),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: _isLoadingAddress
+                      ? null
+                      : _fillAddressFromCurrentLocation,
+                  icon: _isLoadingAddress
+                      ? SizedBox(
+                          width: 16.w,
+                          height: 16.h,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: const Color(0xFF2E7D32),
+                          ),
+                        )
+                      : Icon(
+                          Icons.my_location,
+                          size: 18.sp,
+                          color: const Color(0xFF2E7D32),
+                        ),
+                  label: Text(
+                    'Gunakan Lokasi Saat Ini',
+                    style: TextStyle(
+                      fontSize: 13.sp,
+                      color: const Color(0xFF2E7D32),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 20.h),
+
+          // Location Picker
+          LocationPicker(
+            key: _locationPickerKey,
+            initialLocation: _selectedLocation,
+            onLocationChanged: (location) {
+              _selectedLocation = location;
+            },
+            onAddressChanged: (address) {
+              // Update address controller with geocoded address
+              _addressController.text = address;
             },
           ),
         ],
@@ -339,16 +385,99 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     );
   }
 
-  Widget _buildLocationStep() {
-    return LocationPicker(
-      initialLocation: _selectedLocation,
-      onLocationChanged: (location) {
-        _selectedLocation = location;
-      },
-    );
+  bool _isLoadingAddress = false;
+
+  Future<void> _fillAddressFromCurrentLocation() async {
+    setState(() {
+      _isLoadingAddress = true;
+    });
+
+    try {
+      // Check permission
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          throw 'Izin lokasi ditolak';
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        throw 'Izin lokasi ditolak permanen. Silakan aktifkan di pengaturan.';
+      }
+
+      // Get current position
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      // Save location and update map
+      setState(() {
+        _selectedLocation = LatLng(position.latitude, position.longitude);
+      });
+
+      // Update LocationPicker widget to show new location on map
+      _locationPickerKey.currentState?.updateLocation(_selectedLocation);
+
+      // Get address from coordinates
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+        position.latitude,
+        position.longitude,
+      );
+
+      if (placemarks.isNotEmpty) {
+        Placemark place = placemarks[0];
+        String address = '';
+
+        if (place.street != null && place.street!.isNotEmpty) {
+          address += place.street!;
+        }
+        if (place.subLocality != null && place.subLocality!.isNotEmpty) {
+          address += address.isEmpty
+              ? place.subLocality!
+              : ', ${place.subLocality}';
+        }
+        if (place.locality != null && place.locality!.isNotEmpty) {
+          address += address.isEmpty ? place.locality! : ', ${place.locality}';
+        }
+        if (place.administrativeArea != null &&
+            place.administrativeArea!.isNotEmpty) {
+          address += address.isEmpty
+              ? place.administrativeArea!
+              : ', ${place.administrativeArea}';
+        }
+
+        _addressController.text = address.isEmpty
+            ? 'Alamat tidak ditemukan'
+            : address;
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Alamat berhasil diisi dari lokasi saat ini'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal mendapatkan lokasi: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      setState(() {
+        _isLoadingAddress = false;
+      });
+    }
   }
 
-  Widget _buildLogistikForm(RegistrationState state) {
+  Widget _buildForm(RegistrationState state) {
     return Column(
       children: [
         _buildAccountInfoStep(),
@@ -423,16 +552,31 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         return _step1FormKey.currentState?.validate() ?? false;
       case 1:
         return _step2FormKey.currentState?.validate() ?? false;
-      case 2:
-        return true; // Location step doesn't need validation
       default:
         return false;
     }
   }
 
   void _handleRegistration() {
-    if (!_validateCurrentStep()) return;
+    print('🔍 DEBUG: _handleRegistration called');
+    print('🔍 DEBUG: currentStep = $_currentStep');
+    print('🔍 DEBUG: Validating step...');
 
+    final isValid = _validateCurrentStep();
+    print('🔍 DEBUG: Validation result = $isValid');
+
+    if (!isValid) {
+      print('❌ DEBUG: Validation failed, returning');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Mohon lengkapi semua field yang diperlukan'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    print('✅ DEBUG: Validation passed, calling registration...');
     // Call controller to handle registration
     ref
         .read(registrationControllerProvider.notifier)

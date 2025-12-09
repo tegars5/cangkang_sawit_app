@@ -58,22 +58,39 @@ class AuthRepository {
     String? telepon,
   }) async {
     try {
+      print('🔍 DEBUG SignUp: Starting sign up for $email');
+
       // 1. Daftar user di Supabase Auth
+      print('🔍 DEBUG SignUp: Calling auth.signUp...');
       final response = await _supabaseService.auth.signUp(
         email: email,
         password: password,
       );
 
+      print(
+        '🔍 DEBUG SignUp: Auth response received, user ID: ${response.user?.id}',
+      );
+
       if (response.user != null) {
         // 2. Check if profile already exists (prevent duplicate)
+        print('🔍 DEBUG SignUp: Checking existing profile...');
         final existingProfile = await _supabaseService.client
             .from('profiles')
             .select()
             .eq('id', response.user!.id)
             .maybeSingle();
 
+        print(
+          '🔍 DEBUG SignUp: Existing profile: ${existingProfile != null ? "found" : "not found"}',
+        );
+
         if (existingProfile == null) {
           // 3. Insert profile with all required fields and defaults
+          print('🔍 DEBUG SignUp: Inserting new profile...');
+          print(
+            '🔍 DEBUG SignUp: Data: id=${response.user!.id}, email=$email, name=$namaLengkap, roleId=$roleId',
+          );
+
           await _supabaseService.client.from('profiles').insert({
             'id': response.user!.id,
             'email': email,
@@ -84,8 +101,11 @@ class AuthRepository {
             'is_active': true,
             'created_at': DateTime.now().toIso8601String(),
           });
+
+          print('✅ DEBUG SignUp: Profile inserted successfully');
         } else {
           // Profile already exists, update it
+          print('🔍 DEBUG SignUp: Updating existing profile...');
           await _supabaseService.client
               .from('profiles')
               .update({
@@ -95,11 +115,14 @@ class AuthRepository {
                 'phone': telepon ?? '',
               })
               .eq('id', response.user!.id);
+          print('✅ DEBUG SignUp: Profile updated successfully');
         }
       }
 
+      print('✅ DEBUG SignUp: Sign up completed successfully');
       return Success(response);
     } on supabase.AuthException catch (e) {
+      print('❌ DEBUG SignUp: AuthException - ${e.message}');
       if (e.message.toLowerCase().contains('already') ||
           e.message.toLowerCase().contains('exists')) {
         return Failure(AuthException.emailAlreadyExists());
@@ -116,6 +139,9 @@ class AuthRepository {
         );
       }
     } on PostgrestException catch (e) {
+      print(
+        '❌ DEBUG SignUp: PostgrestException - code: ${e.code}, message: ${e.message}',
+      );
       // Handle duplicate key error specifically
       if (e.code == '23505') {
         return Failure(
@@ -128,8 +154,11 @@ class AuthRepository {
       }
       return Failure(DatabaseException.queryFailed(e.message));
     } on SocketException {
+      print('❌ DEBUG SignUp: SocketException - No connection');
       return Failure(NetworkException.noConnection());
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('❌ DEBUG SignUp: Unknown error - $e');
+      print('❌ DEBUG SignUp: Stack trace - $stackTrace');
       return Failure(UnknownException.generic(e));
     }
   }

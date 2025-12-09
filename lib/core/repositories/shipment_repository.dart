@@ -54,11 +54,7 @@ class ShipmentRepository {
   }) async {
     try {
       // Build query - use dynamic to avoid type issues
-      dynamic queryBuilder = _supabase.from(_tableName).select('''
-            *,
-            driver:driver_id(id, full_name, phone, avatar_url),
-            order:order_id(id, customer_name, customer_address, total_amount, status)
-          ''');
+      dynamic queryBuilder = _supabase.from(_tableName).select();
 
       // Apply filters
       if (driverId != null) {

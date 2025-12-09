@@ -23,7 +23,7 @@ class _SimpleRegisterScreenState extends ConsumerState<SimpleRegisterScreen> {
   final _phoneController = TextEditingController();
 
   String _selectedRole = 'Mitra Bisnis';
-  final List<String> _roles = ['Mitra Bisnis', 'Logistik'];
+  final List<String> _roles = ['Mitra Bisnis', 'driver'];
 
   @override
   void dispose() {

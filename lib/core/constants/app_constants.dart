@@ -14,7 +14,7 @@ class AppConstants {
   // Role IDs sesuai dengan database
   static const int adminRoleId = 1;
   static const int mitraBisnisRoleId = 2;
-  static const int logistikRoleId = 3;
+  static const int logistikRoleId = 12;
 
   // Status Pesanan
   static const String statusPesananBaru = 'Baru';
@@ -47,7 +47,7 @@ class AppConstants {
 enum UserRole {
   admin(1, 'Admin'),
   mitraBisnis(2, 'Mitra Bisnis'),
-  logistik(3, 'Logistik');
+  logistik(12, 'driver');
 
   const UserRole(this.id, this.displayName);
 
