@@ -19,7 +19,12 @@ CREATE TABLE public.driver_locations (
   latitude numeric NOT NULL,
   longitude numeric NOT NULL,
   timestamp timestamp with time zone DEFAULT now(),
+  shipment_id uuid,
+  accuracy numeric,
+  speed numeric,
+  heading numeric,
   CONSTRAINT driver_locations_pkey PRIMARY KEY (id),
+  CONSTRAINT driver_locations_shipment_id_fkey FOREIGN KEY (shipment_id) REFERENCES public.shipments(id),
   CONSTRAINT driver_locations_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.profiles(id)
 );
 CREATE TABLE public.driver_performance (
@@ -127,6 +132,17 @@ CREATE TABLE public.roles (
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT roles_pkey PRIMARY KEY (id)
 );
+CREATE TABLE public.shipment_timeline (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  shipment_id uuid NOT NULL,
+  status character varying NOT NULL,
+  message text NOT NULL,
+  location_lat numeric,
+  location_lng numeric,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT shipment_timeline_pkey PRIMARY KEY (id),
+  CONSTRAINT shipment_timeline_shipment_id_fkey FOREIGN KEY (shipment_id) REFERENCES public.shipments(id)
+);
 CREATE TABLE public.shipments (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   order_id uuid NOT NULL,
@@ -137,6 +153,16 @@ CREATE TABLE public.shipments (
   destination_lng double precision,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
+  destination_address text,
+  delivery_note_url text,
+  notes text,
+  pickup_date timestamp with time zone,
+  assigned_at timestamp with time zone,
+  started_at timestamp with time zone,
+  completed_at timestamp with time zone,
+  estimated_arrival timestamp with time zone,
+  actual_delivery timestamp with time zone,
+  tracking_number character varying,
   CONSTRAINT shipments_pkey PRIMARY KEY (id),
   CONSTRAINT shipments_order_id_fkey FOREIGN KEY (order_id) REFERENCES public.orders(id),
   CONSTRAINT shipments_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.profiles(id)

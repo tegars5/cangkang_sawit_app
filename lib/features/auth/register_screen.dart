@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart';
 import 'controllers/registration_controller.dart';
+import 'controllers/registration_form_notifier.dart';
+import 'models/registration_form_state.dart';
 import 'widgets/registration_form_fields.dart';
 import 'widgets/location_picker.dart';
 import 'registration_success_screen.dart';
@@ -32,10 +31,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _jobTitleController = TextEditingController();
   final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
-
-  String _selectedRole = 'Mitra Bisnis';
-  int _currentStep = 0;
-  LatLng _selectedLocation = const LatLng(-6.2088, 106.8456); // Default Jakarta
 
   final List<String> _roles = ['Mitra Bisnis', 'driver'];
 
@@ -77,6 +72,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     });
 
     final registrationState = ref.watch(registrationControllerProvider);
+    final formState = ref.watch(registrationFormNotifierProvider);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -102,19 +98,18 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
                 // Role Selection
                 RoleDropdown(
-                  value: _selectedRole,
+                  value: formState.selectedRole,
                   items: _roles,
                   onChanged: (value) {
-                    setState(() {
-                      _selectedRole = value!;
-                      _currentStep = 0; // Reset to first step
-                    });
+                    ref
+                        .read(registrationFormNotifierProvider.notifier)
+                        .setRole(value!);
                   },
                 ),
 
                 // Stepper for Mitra Bisnis
-                if (_selectedRole == 'Mitra Bisnis')
-                  _buildMitraStepper(registrationState)
+                if (formState.selectedRole == 'Mitra Bisnis')
+                  _buildMitraStepper(registrationState, formState)
                 else
                   _buildForm(registrationState),
               ],
@@ -146,26 +141,25 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     );
   }
 
-  Widget _buildMitraStepper(RegistrationState state) {
+  Widget _buildMitraStepper(
+    RegistrationState state,
+    RegistrationFormState formState,
+  ) {
     return Stepper(
       physics: const ClampingScrollPhysics(),
-      currentStep: _currentStep,
+      currentStep: formState.currentStep,
       onStepContinue: () {
-        if (_currentStep < 1) {
-          if (_validateCurrentStep()) {
-            setState(() {
-              _currentStep++;
-            });
+        if (formState.currentStep < 1) {
+          if (_validateCurrentStep(formState.currentStep)) {
+            ref.read(registrationFormNotifierProvider.notifier).nextStep();
           }
         } else {
-          _handleRegistration();
+          _handleRegistration(formState);
         }
       },
       onStepCancel: () {
-        if (_currentStep > 0) {
-          setState(() {
-            _currentStep--;
-          });
+        if (formState.currentStep > 0) {
+          ref.read(registrationFormNotifierProvider.notifier).previousStep();
         }
       },
       controlsBuilder: (context, details) {
@@ -193,7 +187,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           ),
                         )
                       : Text(
-                          _currentStep == 1 ? 'Daftar' : 'Lanjut',
+                          formState.currentStep == 1 ? 'Daftar' : 'Lanjut',
                           style: TextStyle(
                             fontSize: 16.sp,
                             fontWeight: FontWeight.w600,
@@ -202,7 +196,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         ),
                 ),
               ),
-              if (_currentStep > 0) ...[
+              if (formState.currentStep > 0) ...[
                 SizedBox(width: 12.w),
                 TextButton(
                   onPressed: state.isLoading ? null : details.onStepCancel,
@@ -220,14 +214,18 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         Step(
           title: const Text('Informasi Akun'),
           content: _buildAccountInfoStep(),
-          isActive: _currentStep >= 0,
-          state: _currentStep > 0 ? StepState.complete : StepState.indexed,
+          isActive: formState.currentStep >= 0,
+          state: formState.currentStep > 0
+              ? StepState.complete
+              : StepState.indexed,
         ),
         Step(
           title: const Text('Informasi Perusahaan & Lokasi'),
-          content: _buildCompanyInfoStep(),
-          isActive: _currentStep >= 1,
-          state: _currentStep > 1 ? StepState.complete : StepState.indexed,
+          content: _buildCompanyInfoStep(formState),
+          isActive: formState.currentStep >= 1,
+          state: formState.currentStep > 1
+              ? StepState.complete
+              : StepState.indexed,
         ),
       ],
     );
@@ -281,7 +279,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     );
   }
 
-  Widget _buildCompanyInfoStep() {
+  Widget _buildCompanyInfoStep(RegistrationFormState formState) {
     return Form(
       key: _step2FormKey,
       child: Column(
@@ -338,10 +336,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton.icon(
-                  onPressed: _isLoadingAddress
+                  onPressed: formState.isLoadingAddress
                       ? null
                       : _fillAddressFromCurrentLocation,
-                  icon: _isLoadingAddress
+                  icon: formState.isLoadingAddress
                       ? SizedBox(
                           width: 16.w,
                           height: 16.h,
@@ -371,9 +369,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           // Location Picker
           LocationPicker(
             key: _locationPickerKey,
-            initialLocation: _selectedLocation,
+            initialLocation: formState.selectedLocation,
             onLocationChanged: (location) {
-              _selectedLocation = location;
+              ref
+                  .read(registrationFormNotifierProvider.notifier)
+                  .setLocation(location);
             },
             onAddressChanged: (address) {
               // Update address controller with geocoded address
@@ -385,99 +385,37 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     );
   }
 
-  bool _isLoadingAddress = false;
-
   Future<void> _fillAddressFromCurrentLocation() async {
-    setState(() {
-      _isLoadingAddress = true;
-    });
+    final error = await ref
+        .read(registrationFormNotifierProvider.notifier)
+        .fillAddressFromCurrentLocation(_addressController);
 
-    try {
-      // Check permission
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          throw 'Izin lokasi ditolak';
-        }
-      }
+    if (mounted) {
+      if (error == null) {
+        // Update LocationPicker widget to show new location on map
+        final formState = ref.read(registrationFormNotifierProvider);
+        _locationPickerKey.currentState?.updateLocation(
+          formState.selectedLocation,
+        );
 
-      if (permission == LocationPermission.deniedForever) {
-        throw 'Izin lokasi ditolak permanen. Silakan aktifkan di pengaturan.';
-      }
-
-      // Get current position
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-
-      // Save location and update map
-      setState(() {
-        _selectedLocation = LatLng(position.latitude, position.longitude);
-      });
-
-      // Update LocationPicker widget to show new location on map
-      _locationPickerKey.currentState?.updateLocation(_selectedLocation);
-
-      // Get address from coordinates
-      List<Placemark> placemarks = await placemarkFromCoordinates(
-        position.latitude,
-        position.longitude,
-      );
-
-      if (placemarks.isNotEmpty) {
-        Placemark place = placemarks[0];
-        String address = '';
-
-        if (place.street != null && place.street!.isNotEmpty) {
-          address += place.street!;
-        }
-        if (place.subLocality != null && place.subLocality!.isNotEmpty) {
-          address += address.isEmpty
-              ? place.subLocality!
-              : ', ${place.subLocality}';
-        }
-        if (place.locality != null && place.locality!.isNotEmpty) {
-          address += address.isEmpty ? place.locality! : ', ${place.locality}';
-        }
-        if (place.administrativeArea != null &&
-            place.administrativeArea!.isNotEmpty) {
-          address += address.isEmpty
-              ? place.administrativeArea!
-              : ', ${place.administrativeArea}';
-        }
-
-        _addressController.text = address.isEmpty
-            ? 'Alamat tidak ditemukan'
-            : address;
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Alamat berhasil diisi dari lokasi saat ini'),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal mendapatkan lokasi: $e'),
-            backgroundColor: Colors.red,
+          const SnackBar(
+            content: Text('Alamat berhasil diisi dari lokasi saat ini'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
           ),
         );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error), backgroundColor: Colors.red),
+        );
       }
-    } finally {
-      setState(() {
-        _isLoadingAddress = false;
-      });
     }
   }
 
   Widget _buildForm(RegistrationState state) {
+    final formState = ref.watch(registrationFormNotifierProvider);
+
     return Column(
       children: [
         _buildAccountInfoStep(),
@@ -485,7 +423,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
-            onPressed: state.isLoading ? null : _handleRegistration,
+            onPressed: state.isLoading
+                ? null
+                : () => _handleRegistration(formState),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF2E7D32),
               padding: EdgeInsets.symmetric(vertical: 16.h),
@@ -546,8 +486,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     );
   }
 
-  bool _validateCurrentStep() {
-    switch (_currentStep) {
+  bool _validateCurrentStep(int currentStep) {
+    switch (currentStep) {
       case 0:
         return _step1FormKey.currentState?.validate() ?? false;
       case 1:
@@ -557,18 +497,18 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     }
   }
 
-  void _handleRegistration() {
+  void _handleRegistration(RegistrationFormState formState) {
     print('🔍 DEBUG: _handleRegistration called');
-    print('🔍 DEBUG: currentStep = $_currentStep');
+    print('🔍 DEBUG: currentStep = ${formState.currentStep}');
     print('🔍 DEBUG: Validating step...');
 
-    final isValid = _validateCurrentStep();
+    final isValid = _validateCurrentStep(formState.currentStep);
     print('🔍 DEBUG: Validation result = $isValid');
 
     if (!isValid) {
       print('❌ DEBUG: Validation failed, returning');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text('Mohon lengkapi semua field yang diperlukan'),
           backgroundColor: Colors.orange,
         ),
@@ -584,24 +524,24 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           email: _emailController.text.trim(),
           password: _passwordController.text,
           fullName: _nameController.text.trim(),
-          role: _selectedRole,
-          companyName: _selectedRole == 'Mitra Bisnis'
+          role: formState.selectedRole,
+          companyName: formState.selectedRole == 'Mitra Bisnis'
               ? _companyController.text.trim()
               : null,
-          jobTitle: _selectedRole == 'Mitra Bisnis'
+          jobTitle: formState.selectedRole == 'Mitra Bisnis'
               ? _jobTitleController.text.trim()
               : null,
-          phone: _selectedRole == 'Mitra Bisnis'
+          phone: formState.selectedRole == 'Mitra Bisnis'
               ? _phoneController.text.trim()
               : null,
-          address: _selectedRole == 'Mitra Bisnis'
+          address: formState.selectedRole == 'Mitra Bisnis'
               ? _addressController.text.trim()
               : null,
-          latitude: _selectedRole == 'Mitra Bisnis'
-              ? _selectedLocation.latitude
+          latitude: formState.selectedRole == 'Mitra Bisnis'
+              ? formState.selectedLocation.latitude
               : null,
-          longitude: _selectedRole == 'Mitra Bisnis'
-              ? _selectedLocation.longitude
+          longitude: formState.selectedRole == 'Mitra Bisnis'
+              ? formState.selectedLocation.longitude
               : null,
         );
   }
