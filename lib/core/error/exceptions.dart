@@ -40,13 +40,14 @@ class ValidationException implements Exception {
 }
 
 /// Authentication exception - when auth operations fail
-class AuthException implements Exception {
+/// Renamed to AppAuthException to avoid conflict with Supabase AuthException
+class AppAuthException implements Exception {
   final String message;
 
-  const AuthException([this.message = 'Authentication exception occurred']);
+  const AppAuthException([this.message = 'Authentication exception occurred']);
 
   @override
-  String toString() => 'AuthException: $message';
+  String toString() => 'AppAuthException: $message';
 }
 
 /// Not found exception - when resource is not found

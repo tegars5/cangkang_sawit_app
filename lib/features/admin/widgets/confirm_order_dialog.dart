@@ -40,7 +40,8 @@ class _ConfirmOrderDialogState extends State<ConfirmOrderDialog> {
       final confirmedItems = orderDetails.map((detail) {
         return {
           'detail_id': detail.id,
-          'confirmed_quantity': detail.quantity, // Accept full quantity
+          'confirmed_quantity':
+              detail.requestedQuantity, // Use requestedQuantity
         };
       }).toList();
 

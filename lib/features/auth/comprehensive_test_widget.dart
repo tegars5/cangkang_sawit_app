@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../utils/force_user_creator.dart';
-import '../../utils/test_user_creator.dart';
+// import '../../utils/test_user_creator.dart'; // DELETED - use force_user_creator instead
 import '../../widgets/lottie_animations.dart';
-import '../../debug/animation_test_screen.dart';
+// import '../../debug/animation_test_screen.dart'; // DELETED - not needed for CA migration
 
 /// Widget untuk comprehensive testing dan debugging
 class ComprehensiveTestWidget extends StatefulWidget {
@@ -109,11 +109,11 @@ class _ComprehensiveTestWidgetState extends State<ComprehensiveTestWidget> {
                 SizedBox(width: 12.w),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: _isLoading ? null : _normalCreateUsers,
+                    onPressed: null, // Disabled - TestUserCreator deleted
                     icon: const Icon(Icons.person_add),
                     label: const Text('Normal Create'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange[600],
+                      backgroundColor: Colors.grey, // Disabled color
                       foregroundColor: Colors.white,
                     ),
                   ),
@@ -203,28 +203,27 @@ class _ComprehensiveTestWidgetState extends State<ComprehensiveTestWidget> {
 
             SizedBox(height: 12.h),
 
-            // Test Professional Animations Button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const AnimationTestScreen(),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.animation),
-                label: const Text('Test Professional Animations'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.purple[600],
-                  foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(vertical: 12.h),
-                ),
-              ),
-            ),
-
+            // Test Professional Animations Button - DISABLED
+            // SizedBox(
+            //   width: double.infinity,
+            //   child: ElevatedButton.icon(
+            //     onPressed: () {
+            //       Navigator.push(
+            //         context,
+            //         MaterialPageRoute(
+            //           builder: (context) => const AnimationTestScreen(),
+            //         ),
+            //       );
+            //     },
+            //     icon: const Icon(Icons.animation),
+            //     label: const Text('Test Professional Animations'),
+            //     style: ElevatedButton.styleFrom(
+            //       backgroundColor: Colors.purple[600],
+            //       foregroundColor: Colors.white,
+            //       padding: EdgeInsets.symmetric(vertical: 12.h),
+            //     ),
+            //   ),
+            // ),
             SizedBox(height: 12.h),
 
             // Clear button
@@ -305,31 +304,29 @@ class _ComprehensiveTestWidgetState extends State<ComprehensiveTestWidget> {
     });
   }
 
-  Future<void> _normalCreateUsers() async {
-    setState(() {
-      _isLoading = true;
-      _statusText = 'Creating users (normal method)...';
-    });
-
-    try {
-      _addResult('🔄 Starting normal user creation...');
-      await TestUserCreator.createAllTestUsers();
-      _addResult('✅ Normal user creation completed');
-
-      setState(() {
-        _statusText = 'Normal user creation: ✅ DONE';
-      });
-    } catch (e) {
-      _addResult('❌ Normal user creation failed: $e');
-      setState(() {
-        _statusText = 'Normal creation error: $e';
-      });
-    }
-
-    setState(() {
-      _isLoading = false;
-    });
-  }
+  // DISABLED - TestUserCreator deleted
+  // Future<void> _normalCreateUsers() async {
+  //   setState(() {
+  //     _isLoading = true;
+  //     _statusText = 'Creating users (normal method)...';
+  //   });
+  //   try {
+  //     _addResult('🔄 Starting normal user creation...');
+  //     await TestUserCreator.createAllTestUsers();
+  //     _addResult('✅ Normal user creation completed');
+  //     setState(() {
+  //       _statusText = 'Normal user creation: ✅ DONE';
+  //     });
+  //   } catch (e) {
+  //     _addResult('❌ Normal user creation failed: $e');
+  //     setState(() {
+  //       _statusText = 'Normal creation error: $e';
+  //     });
+  //   }
+  //   setState(() {
+  //     _isLoading = false;
+  //   });
+  // }
 
   Future<void> _forceCreateUsers() async {
     setState(() {
@@ -406,34 +403,28 @@ class _ComprehensiveTestWidgetState extends State<ComprehensiveTestWidget> {
     });
   }
 
-  /// Create test users dengan professional animation
-  Future<void> _createTestUsersWithAnimation() async {
-    setState(() {
-      _isLoading = true;
-      _statusText = 'Creating test users...';
-    });
-
-    try {
-      _addResult('🔄 Starting professional user creation...');
-
-      // Use the professional UI method from TestUserCreator
-      await TestUserCreator.createAllTestUsersWithUI(context);
-
-      _addResult('✅ Professional user creation completed!');
-      setState(() {
-        _statusText = 'Professional creation: ✅ SUCCESS';
-      });
-    } catch (e) {
-      _addResult('❌ Professional creation error: $e');
-      setState(() {
-        _statusText = 'Professional creation: ❌ ERROR';
-      });
-
-      LottieSnackbar.showError(context, message: 'Error creating users: $e');
-    }
-
-    setState(() {
-      _isLoading = false;
-    });
-  }
+  // DISABLED - TestUserCreator deleted
+  // Future<void> _createTestUsersWithAnimation() async {
+  //   setState(() {
+  //     _isLoading = true;
+  //     _statusText = 'Creating test users...';
+  //   });
+  //   try {
+  //     _addResult('🔄 Starting professional user creation...');
+  //     await TestUserCreator.createAllTestUsersWithUI(context);
+  //     _addResult('✅ Professional user creation completed!');
+  //     setState(() {
+  //       _statusText = 'Professional creation: ✅ SUCCESS';
+  //     });
+  //   } catch (e) {
+  //     _addResult('❌ Professional creation error: $e');
+  //     setState(() {
+  //       _statusText = 'Professional creation: ❌ ERROR';
+  //     });
+  //     LottieSnackbar.showError(context, message: 'Error creating users: $e');
+  //   }
+  //   setState(() {
+  //     _isLoading = false;
+  //   });
+  // }
 }

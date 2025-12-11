@@ -23,7 +23,7 @@ class AuthRepositoryImpl implements AuthRepository {
         password: password,
       );
       return dartz.Right(user);
-    } on AuthException catch (e) {
+    } on AppAuthException catch (e) {
       return dartz.Left(AuthFailure(e.message));
     } on ServerException catch (e) {
       return dartz.Left(ServerFailure(e.message));
@@ -49,7 +49,7 @@ class AuthRepositoryImpl implements AuthRepository {
         additionalData: additionalData,
       );
       return dartz.Right(user);
-    } on AuthException catch (e) {
+    } on AppAuthException catch (e) {
       return dartz.Left(AuthFailure(e.message));
     } on ServerException catch (e) {
       return dartz.Left(ServerFailure(e.message));
@@ -63,7 +63,7 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       await _remoteDataSource.logout();
       return const dartz.Right(null);
-    } on AuthException catch (e) {
+    } on AppAuthException catch (e) {
       return dartz.Left(AuthFailure(e.message));
     } catch (e) {
       return dartz.Left(AuthFailure('Unexpected error: $e'));

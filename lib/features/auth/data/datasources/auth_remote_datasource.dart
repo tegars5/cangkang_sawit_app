@@ -21,7 +21,7 @@ class AuthRemoteDataSource {
       );
 
       if (response.user == null) {
-        throw AuthException('Login failed');
+        throw const AppAuthException('Login failed');
       }
 
       // Get user profile
@@ -31,13 +31,14 @@ class AuthRemoteDataSource {
           .eq('id', response.user!.id)
           .single();
 
-      return UserProfile.fromJson(profileData as Map<String, dynamic>);
+      return UserProfile.fromJson(profileData);
     } on AuthException catch (e) {
-      throw AuthException(e.message);
+      // Supabase AuthException
+      throw AppAuthException(e.message);
     } on PostgrestException catch (e) {
       throw ServerException('Failed to get profile: ${e.message}');
     } catch (e) {
-      throw AuthException('Login failed: $e');
+      throw AppAuthException('Login failed: $e');
     }
   }
 
@@ -56,7 +57,7 @@ class AuthRemoteDataSource {
       );
 
       if (response.user == null) {
-        throw AuthException('Registration failed');
+        throw const AppAuthException('Registration failed');
       }
 
       // Create profile
@@ -72,11 +73,12 @@ class AuthRemoteDataSource {
 
       return UserProfile.fromJson(profileData);
     } on AuthException catch (e) {
-      throw AuthException(e.message);
+      // Supabase AuthException
+      throw AppAuthException(e.message);
     } on PostgrestException catch (e) {
       throw ServerException('Failed to create profile: ${e.message}');
     } catch (e) {
-      throw AuthException('Registration failed: $e');
+      throw AppAuthException('Registration failed: $e');
     }
   }
 
@@ -85,7 +87,7 @@ class AuthRemoteDataSource {
     try {
       await _client.auth.signOut();
     } catch (e) {
-      throw AuthException('Logout failed: $e');
+      throw AppAuthException('Logout failed: $e');
     }
   }
 
@@ -101,7 +103,7 @@ class AuthRemoteDataSource {
           .eq('id', user.id)
           .single();
 
-      return UserProfile.fromJson(profileData as Map<String, dynamic>);
+      return UserProfile.fromJson(profileData);
     } on PostgrestException catch (e) {
       throw ServerException('Failed to get profile: ${e.message}');
     } catch (e) {
@@ -123,7 +125,7 @@ class AuthRemoteDataSource {
           .eq('id', userId)
           .single();
 
-      return UserProfile.fromJson(profileData as Map<String, dynamic>);
+      return UserProfile.fromJson(profileData);
     } on PostgrestException catch (e) {
       throw ServerException('Failed to update profile: ${e.message}');
     } catch (e) {
