@@ -4,7 +4,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../../shared/models/models.dart';
 import '../../shared/repositories/order_repository.dart';
-import 'order_tracking_screen.dart';
+import '../../shared/repositories/tracking_repository.dart';
+import '../tracking/pages/tracking_progress_screen.dart';
 
 class OrderHistoryScreen extends ConsumerStatefulWidget {
   const OrderHistoryScreen({super.key});
@@ -492,14 +493,55 @@ class _OrderHistoryScreenState extends ConsumerState<OrderHistoryScreen>
                   ),
                   const Spacer(),
                   TextButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              OrderTrackingScreen(orderId: order.id),
+                    onPressed: () async {
+                      // Show loading
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (context) => const Center(
+                          child: CircularProgressIndicator(
+                            color: Color(0xFF2E7D32),
+                          ),
                         ),
                       );
+
+                      try {
+                        // Get shipment by order ID
+                        final trackingRepo = TrackingRepository();
+                        final shipment = await trackingRepo
+                            .getShipmentByOrderId(order.id);
+
+                        if (!mounted) return;
+                        Navigator.pop(context); // Close loading
+
+                        if (shipment == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Data pengiriman belum tersedia'),
+                              backgroundColor: Colors.orange,
+                            ),
+                          );
+                          return;
+                        }
+
+                        // Navigate to tracking screen
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                TrackingProgressScreen(shipmentId: shipment.id),
+                          ),
+                        );
+                      } catch (e) {
+                        if (!mounted) return;
+                        Navigator.pop(context); // Close loading
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Gagal memuat tracking: $e'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
                     },
                     icon: Icon(
                       Icons.location_on,

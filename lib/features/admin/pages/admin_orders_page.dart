@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../../shared/models/models.dart';
 import '../../../shared/repositories/order_repository.dart';
 import '../../../widgets/common/status_badge.dart'; // Widget yang baru kita buat
+import '../widgets/confirm_order_dialog.dart';
 import 'order_detail_page.dart';
 
 class AdminOrdersPage extends StatefulWidget {
@@ -229,6 +230,45 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
                                     ),
                                   ],
                                 ),
+                                // Add Confirm Button for Pending Orders
+                                if (order.status.toLowerCase() ==
+                                    'pending') ...[
+                                  SizedBox(height: 12.h),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: ElevatedButton.icon(
+                                      onPressed: () async {
+                                        final result = await showDialog<bool>(
+                                          context: context,
+                                          builder: (context) =>
+                                              ConfirmOrderDialog(
+                                                order: order,
+                                                orderRepository:
+                                                    _orderRepository,
+                                              ),
+                                        );
+
+                                        // Refresh list if order was confirmed
+                                        if (result == true) {
+                                          _fetchOrders();
+                                        }
+                                      },
+                                      icon: const Icon(
+                                        Icons.check_circle_outline,
+                                      ),
+                                      label: const Text('Konfirmasi Pesanan'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(
+                                          0xFF2E7D32,
+                                        ),
+                                        foregroundColor: Colors.white,
+                                        padding: EdgeInsets.symmetric(
+                                          vertical: 12.h,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                           ),

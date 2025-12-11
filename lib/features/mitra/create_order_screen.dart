@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart';
-import 'package:uuid/uuid.dart'; // Pastikan package uuid ada di pubspec.yaml
+import 'package:uuid/uuid.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 
 import '../../shared/models/models.dart';
 import '../../shared/repositories/order_repository.dart';
 import '../../shared/repositories/product_repository.dart';
+import '../../shared/repositories/user_repository.dart';
 import '../../core/services/supabase_service.dart';
-import '../../widgets/lottie_animations.dart';
 
 import '../cart/providers/cart_provider.dart';
 import 'order_history_screen.dart';
@@ -36,6 +38,7 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
   // Repositories
   final _productRepository = ProductRepository();
   final _orderRepository = OrderRepository();
+  final _userRepository = UserRepository();
   final _supabaseService = SupabaseService.instance;
 
   // Controllers
@@ -45,9 +48,9 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
 
   // State Data
   List<Product> _availableProducts = [];
-  // Cart items sekarang menggunakan cartProvider
   Product? _selectedProduct;
   DateTime _selectedDeliveryDate = DateTime.now().add(const Duration(days: 3));
+  bool _isLoadingAddress = false;
 
   // UI State
   bool _isLoadingProducts = true;
@@ -58,6 +61,29 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
   void initState() {
     super.initState();
     _fetchProducts();
+    _loadUserProfile();
+  }
+
+  /// Load user profile and auto-fill address
+  Future<void> _loadUserProfile() async {
+    try {
+      final currentUser = _supabaseService.currentUser;
+      if (currentUser == null) return;
+
+      final profile = await _userRepository.getUserProfile(currentUser.id);
+      if (profile != null && mounted) {
+        // Auto-fill address from profile if available
+        if (profile.address != null && profile.address!.isNotEmpty) {
+          setState(() {
+            _addressController.text = profile.address!;
+          });
+        }
+        // Note: Location coordinates are saved in profile but not used in this screen
+      }
+    } catch (e) {
+      // Silent fail - tidak critical
+      debugPrint('Failed to load user profile: $e');
+    }
   }
 
   @override
@@ -219,42 +245,50 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
       }).toList();
 
       // 4. Panggil Repository (Transaksi Database)
-      await _orderRepository.createOrder(order: newOrder, items: orderDetails);
+      // UPDATED: Use createOrderWithShipment to auto-create shipment
+      final result = await _orderRepository.createOrderWithShipment(
+        order: newOrder,
+        items: orderDetails,
+      );
 
-      // 5. Sukses! Tampilkan Animasi & Pindah Halaman
-      if (mounted) {
-        await LottieSuccessDialog.show(
-          context,
-          title: 'Pesanan Berhasil!',
-          message:
-              'Nomor Pesanan: $orderNumber\nAdmin akan segera memprosesnya.',
-        );
+      final orderId = result['orderId']!;
+      final shipmentId = result['shipmentId']!;
 
-        // Clear cart setelah berhasil order
-        ref.read(cartProvider.notifier).clearCart();
+      // 5. Clear cart after successful order
+      ref.read(cartProvider.notifier).clearCart();
 
-        // Pindah ke History biar user bisa lihat statusnya
-        if (mounted) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (context) => const OrderHistoryScreen()),
-          );
-        }
-      }
+      setState(() {
+        _isSubmitting = false;
+      });
+
+      // 6. Show success message
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('✅ Pesanan berhasil dibuat!\nNomor: $orderNumber'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+
+      // Navigate to order history
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const OrderHistoryScreen()),
+      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal kirim pesanan: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isSubmitting = false;
-        });
-      }
+      setState(() {
+        _isSubmitting = false;
+        _errorMessage = e.toString();
+      });
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal membuat pesanan: $_errorMessage'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -495,15 +529,74 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
                     ),
                   ),
                   SizedBox(height: 12.h),
-                  TextField(
-                    controller: _addressController,
-                    maxLines: 3,
-                    decoration: const InputDecoration(
-                      labelText: 'Alamat Lengkap Pengiriman',
-                      hintText: 'Nama Jalan, Gudang, Kota...',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.location_on_outlined),
-                    ),
+
+                  // Address field with auto-fill button
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextField(
+                        controller: _addressController,
+                        maxLines: 3,
+                        decoration: const InputDecoration(
+                          labelText: 'Alamat Lengkap Pengiriman',
+                          hintText: 'Nama Jalan, Gudang, Kota...',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.location_on_outlined),
+                        ),
+                      ),
+                      SizedBox(height: 8.h),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: _isLoadingAddress
+                                  ? null
+                                  : _fillAddressFromCurrentLocation,
+                              icon: _isLoadingAddress
+                                  ? SizedBox(
+                                      width: 16.w,
+                                      height: 16.h,
+                                      child: const CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Color(0xFF2E7D32),
+                                      ),
+                                    )
+                                  : const Icon(Icons.my_location, size: 18),
+                              label: const Text(
+                                'Gunakan Lokasi Saat Ini',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: const Color(0xFF2E7D32),
+                                side: const BorderSide(
+                                  color: Color(0xFF2E7D32),
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: 8.w),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: _loadUserProfile,
+                              icon: const Icon(
+                                Icons.person_pin_circle,
+                                size: 18,
+                              ),
+                              label: const Text(
+                                'Gunakan Alamat Profil',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: const Color(0xFF2E7D32),
+                                side: const BorderSide(
+                                  color: Color(0xFF2E7D32),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                   SizedBox(height: 12.h),
 
@@ -610,5 +703,92 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
               ),
             ),
     );
+  }
+
+  /// Fill address from current GPS location
+  Future<void> _fillAddressFromCurrentLocation() async {
+    setState(() {
+      _isLoadingAddress = true;
+    });
+
+    try {
+      // Check permission
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          throw 'Izin lokasi ditolak';
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        throw 'Izin lokasi ditolak permanen. Silakan aktifkan di pengaturan.';
+      }
+
+      // Get current position
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      // Note: Location is used only for geocoding, not stored
+
+      // Get address from coordinates
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+        position.latitude,
+        position.longitude,
+      );
+
+      if (placemarks.isNotEmpty) {
+        Placemark place = placemarks[0];
+        String address = '';
+
+        if (place.street != null && place.street!.isNotEmpty) {
+          address += place.street!;
+        }
+        if (place.subLocality != null && place.subLocality!.isNotEmpty) {
+          address += address.isEmpty
+              ? place.subLocality!
+              : ', ${place.subLocality}';
+        }
+        if (place.locality != null && place.locality!.isNotEmpty) {
+          address += address.isEmpty ? place.locality! : ', ${place.locality}';
+        }
+        if (place.administrativeArea != null &&
+            place.administrativeArea!.isNotEmpty) {
+          address += address.isEmpty
+              ? place.administrativeArea!
+              : ', ${place.administrativeArea}';
+        }
+
+        _addressController.text = address.isEmpty
+            ? 'Alamat tidak ditemukan'
+            : address;
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Alamat berhasil diisi dari lokasi saat ini'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal mendapatkan lokasi: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingAddress = false;
+        });
+      }
+    }
   }
 }

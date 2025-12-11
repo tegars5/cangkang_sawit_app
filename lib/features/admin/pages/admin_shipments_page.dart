@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../widgets/common/common_widgets.dart';
-import '../../../shared/services/shipment_service.dart';
+import '../../../shared/models/shipment.dart';
+import '../../../core/repositories/shipment_repository.dart';
+import '../widgets/assign_driver_dialog.dart';
 import 'shipment_detail_page.dart';
 
 /// Admin Shipments Page - Prepare and Track Shipments
@@ -113,11 +115,11 @@ class _AdminShipmentsPageState extends ConsumerState<AdminShipmentsPage> {
 
           // Shipments List
           Expanded(
-            child: FutureBuilder<List<Map<String, dynamic>>>(
-              future: ShipmentService.getShipments(),
+            child: FutureBuilder<List<Shipment>>(
+              future: _loadShipments(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return Center(child: CircularProgressIndicator());
+                  return const Center(child: CircularProgressIndicator());
                 }
 
                 if (snapshot.hasError) {
@@ -125,19 +127,26 @@ class _AdminShipmentsPageState extends ConsumerState<AdminShipmentsPage> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.error_outline, size: 64, color: Colors.grey),
-                        SizedBox(height: 16),
-                        Text('Error loading shipments'),
+                        const Icon(
+                          Icons.error_outline,
+                          size: 64,
+                          color: Colors.grey,
+                        ),
+                        const SizedBox(height: 16),
+                        Text('Error: ${snapshot.error}'),
                         TextButton(
                           onPressed: () => setState(() {}),
-                          child: Text('Retry'),
+                          child: const Text('Retry'),
                         ),
                       ],
                     ),
                   );
                 }
 
-                final shipments = snapshot.data ?? [];
+                final allShipments = snapshot.data ?? [];
+
+                // Filter by selected tab
+                final shipments = _filterShipmentsByTab(allShipments);
 
                 if (shipments.isEmpty) {
                   return Center(
@@ -174,30 +183,48 @@ class _AdminShipmentsPageState extends ConsumerState<AdminShipmentsPage> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        heroTag: "admin_shipments_fab",
-        onPressed: () {
-          // TODO: Create new shipment
-        },
-        backgroundColor: const Color(0xFF1B5E20),
-        child: Icon(
-          Icons.local_shipping_outlined,
-          color: Colors.white,
-          size: 24.sp,
-        ),
-      ),
+      floatingActionButton: null, // Remove create shipment FAB for now
     );
   }
 
-  Widget _buildShipmentCard(Map<String, dynamic> shipment) {
+  Future<List<Shipment>> _loadShipments() async {
+    try {
+      return await ShipmentRepository.getAllShipments();
+    } catch (e) {
+      throw Exception('Failed to load shipments: $e');
+    }
+  }
+
+  List<Shipment> _filterShipmentsByTab(List<Shipment> shipments) {
+    switch (_selectedTabIndex) {
+      case 0: // All Shipments
+        return shipments;
+      case 1: // Ready to Ship (confirmed orders, no driver assigned yet)
+        // Only show shipments from CONFIRMED orders that don't have driver
+        return shipments
+            .where(
+              (s) =>
+                  s.status == 'pending' &&
+                  s.driverId == null &&
+                  s.order?.status ==
+                      'confirmed', // Order must be confirmed first
+            )
+            .toList();
+      case 2: // In Transit
+        return shipments.where((s) => s.status == 'in_transit').toList();
+      case 3: // Delivered
+        return shipments.where((s) => s.status == 'completed').toList();
+      default:
+        return shipments;
+    }
+  }
+
+  Widget _buildShipmentCard(Shipment shipment) {
+    final hasDriver = shipment.driverId != null;
+
     return GestureDetector(
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ShipmentDetailPage(shipmentData: shipment),
-          ),
-        );
+        // Navigate to shipment detail (will implement later)
       },
       child: Container(
         margin: EdgeInsets.only(bottom: 12.h),
@@ -217,27 +244,29 @@ class _AdminShipmentsPageState extends ConsumerState<AdminShipmentsPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
+              // Header with Delivery Note Number and Status
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    shipment['shipmentNumber'],
-                    style: TextStyle(
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
+                  Expanded(
+                    child: Text(
+                      shipment.deliveryNoteNumber,
+                      style: TextStyle(
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
                     ),
                   ),
-                  StatusBadge(status: shipment['status']),
+                  StatusBadge(status: shipment.status),
                 ],
               ),
 
               SizedBox(height: 8.h),
 
-              // Order Info
+              // Order ID
               Text(
-                'Order: ${shipment['orderNumber']}',
+                'Order: ${shipment.orderId.substring(0, 8)}...',
                 style: TextStyle(
                   fontSize: 12.sp,
                   color: Colors.grey[600],
@@ -245,105 +274,58 @@ class _AdminShipmentsPageState extends ConsumerState<AdminShipmentsPage> {
                 ),
               ),
 
-              SizedBox(height: 4.h),
-
-              Text(
-                shipment['customerName'],
-                style: TextStyle(
-                  fontSize: 13.sp,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black87,
-                ),
-              ),
-
               SizedBox(height: 12.h),
 
-              // Driver & Vehicle Info
-              Row(
-                children: [
-                  Icon(
-                    Icons.person_outline,
-                    size: 16.sp,
-                    color: Colors.grey[600],
-                  ),
-                  SizedBox(width: 4.w),
-                  Text(
-                    shipment['driver'],
-                    style: TextStyle(fontSize: 12.sp, color: Colors.grey[600]),
-                  ),
-                  SizedBox(width: 16.w),
-                  Icon(
-                    Icons.local_shipping_outlined,
-                    size: 16.sp,
-                    color: Colors.grey[600],
-                  ),
-                  SizedBox(width: 4.w),
-                  Text(
-                    shipment['vehicle'],
-                    style: TextStyle(fontSize: 12.sp, color: Colors.grey[600]),
-                  ),
-                ],
-              ),
-
-              SizedBox(height: 8.h),
-
-              // Destination & Quantity
-              Row(
-                children: [
-                  Icon(
-                    Icons.location_on_outlined,
-                    size: 16.sp,
-                    color: Colors.grey[600],
-                  ),
-                  SizedBox(width: 4.w),
-                  Text(
-                    shipment['destination'],
-                    style: TextStyle(fontSize: 12.sp, color: Colors.grey[600]),
-                  ),
-                  SizedBox(width: 16.w),
-                  Icon(
-                    Icons.inventory_2_outlined,
-                    size: 16.sp,
-                    color: Colors.grey[600],
-                  ),
-                  SizedBox(width: 4.w),
-                  Text(
-                    shipment['quantity'],
-                    style: TextStyle(fontSize: 12.sp, color: Colors.grey[600]),
-                  ),
-                ],
-              ),
-
-              SizedBox(height: 12.h),
-
-              // Progress Bar (for In Transit)
-              if (shipment['status'] == 'In Transit') ...[
+              // Driver Info or Assign Button
+              if (hasDriver)
                 Row(
                   children: [
-                    Expanded(
-                      child: LinearProgressIndicator(
-                        value: shipment['progress'],
-                        backgroundColor: Colors.grey[300],
-                        valueColor: const AlwaysStoppedAnimation<Color>(
-                          Color(0xFF1B5E20),
-                        ),
-                      ),
+                    Icon(
+                      Icons.person_outline,
+                      size: 16.sp,
+                      color: Colors.grey[600],
                     ),
-                    SizedBox(width: 8.w),
+                    SizedBox(width: 4.w),
                     Text(
-                      '${(shipment['progress'] * 100).toInt()}%',
+                      'Driver Assigned',
                       style: TextStyle(
                         fontSize: 12.sp,
-                        color: const Color(0xFF1B5E20),
-                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[600],
                       ),
                     ),
                   ],
-                ),
-                SizedBox(height: 8.h),
-              ],
+                )
+              else
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    final result = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AssignDriverDialog(
+                        shipmentId: shipment.id,
+                        currentDriverId: shipment.driverId,
+                      ),
+                    );
 
-              // Scheduled Date
+                    if (result == true) {
+                      // Refresh the list
+                      setState(() {});
+                    }
+                  },
+                  icon: const Icon(Icons.person_add, size: 16),
+                  label: const Text('Assign Driver'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2E7D32),
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 12.w,
+                      vertical: 8.h,
+                    ),
+                  ),
+                ),
+
+              SizedBox(height: 8.h),
+
+              // Created Date
               Row(
                 children: [
                   Icon(
@@ -353,7 +335,7 @@ class _AdminShipmentsPageState extends ConsumerState<AdminShipmentsPage> {
                   ),
                   SizedBox(width: 4.w),
                   Text(
-                    'Scheduled: ${shipment['scheduledDate']}',
+                    'Created: ${_formatDate(shipment.createdAt)}',
                     style: TextStyle(fontSize: 12.sp, color: Colors.grey[600]),
                   ),
                 ],
@@ -363,6 +345,10 @@ class _AdminShipmentsPageState extends ConsumerState<AdminShipmentsPage> {
         ),
       ),
     );
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
   }
 
   @override

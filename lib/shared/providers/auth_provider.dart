@@ -46,7 +46,25 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 
 /// Current user provider
 final currentUserProvider = Provider<User?>((ref) {
-  return Supabase.instance.client.auth.currentUser;
+  // Listen to auth state changes
+  final supabase = Supabase.instance.client;
+
+  // Watch auth state stream to auto-refresh
+  ref.listen(authStateStreamProvider, (previous, next) {
+    // Invalidate self when auth changes
+    ref.invalidateSelf();
+  });
+
+  return supabase.auth.currentUser;
+});
+
+/// Auth state stream provider to watch for changes
+final authStateStreamProvider = StreamProvider<AuthState>((ref) {
+  final supabase = Supabase.instance.client;
+
+  return supabase.auth.onAuthStateChange.map((data) {
+    return AuthState(user: data.session?.user, isLoading: false);
+  });
 });
 
 /// Current user profile provider

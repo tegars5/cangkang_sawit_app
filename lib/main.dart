@@ -93,11 +93,14 @@ class AuthCheck extends ConsumerWidget {
       case 1: // Admin
         return const AdminMainLayout();
       case 2: // Mitra
+      case 11: // Mitra Bisnis (alternative ID)
         return const MitraDashboardScreen();
       case 3: // Driver
+      case 12: // Driver (alternative ID)
         return const DriverDashboardScreen();
       default:
-        return const MitraDashboardScreen();
+        // Fallback: check role name from profile
+        return const LoginScreen(); // Redirect to login if unknown role
     }
   }
 }

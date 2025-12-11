@@ -5,7 +5,7 @@ import 'order.dart';
 class Shipment {
   final String id; // UUID primary key
   final String orderId; // Foreign key to orders
-  final String driverId; // Foreign key to profiles
+  final String? driverId; // Foreign key to profiles - NULLABLE (assigned later)
   final String deliveryNoteNumber; // UNIQUE
   final String? deliveryNoteUrl;
   final String? proofOfDeliveryUrl;
@@ -29,7 +29,7 @@ class Shipment {
   const Shipment({
     required this.id,
     required this.orderId,
-    required this.driverId,
+    this.driverId, // NULLABLE - driver assigned later by admin
     required this.deliveryNoteNumber,
     this.deliveryNoteUrl,
     this.proofOfDeliveryUrl,
@@ -53,7 +53,7 @@ class Shipment {
     return Shipment(
       id: json['id'] as String,
       orderId: json['order_id'] as String,
-      driverId: json['driver_id'] as String,
+      driverId: json['driver_id'] as String?, // NULLABLE
       deliveryNoteNumber: json['delivery_note_number'] as String,
       deliveryNoteUrl: json['delivery_note_url'] as String?,
       proofOfDeliveryUrl: json['proof_of_delivery_url'] as String?,

@@ -557,7 +557,10 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
             SizedBox(height: 12.h),
             // This would need to be populated with actual driver data
             // For now, showing placeholder
-            _buildInfoRow('Driver ID', shipment!.driverId),
+            _buildInfoRow(
+              'Driver ID',
+              shipment!.driverId ?? 'Belum ditugaskan',
+            ),
             _buildInfoRow('Status', _getStatusText(shipment!.status)),
             if (currentDriverLocation != null) ...[
               _buildInfoRow(

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../widgets/common/common_widgets.dart';
+import '../../../shared/models/models.dart';
+import 'driver_navigation_screen.dart';
 
 /// Task Detail Page - Complete task information and actions
 class TaskDetailPage extends StatefulWidget {
@@ -74,19 +76,22 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        widget.taskData['taskNumber'],
+                        widget.taskData['taskNumber']?.toString() ?? 'N/A',
                         style: TextStyle(
                           fontSize: 16.sp,
                           fontWeight: FontWeight.w600,
                           color: Colors.black87,
                         ),
                       ),
-                      StatusBadge(status: widget.taskData['status']),
+                      StatusBadge(
+                        status:
+                            widget.taskData['status']?.toString() ?? 'pending',
+                      ),
                     ],
                   ),
                   SizedBox(height: 8.h),
                   Text(
-                    'Order: ${widget.taskData['orderNumber']}',
+                    'Order: ${widget.taskData['orderNumber']?.toString() ?? 'N/A'}',
                     style: TextStyle(
                       fontSize: 14.sp,
                       fontWeight: FontWeight.w500,
@@ -95,7 +100,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                   ),
                   SizedBox(height: 4.h),
                   Text(
-                    widget.taskData['customerName'],
+                    widget.taskData['customerName']?.toString() ?? 'N/A',
                     style: TextStyle(fontSize: 12.sp, color: Colors.grey[600]),
                   ),
                 ],
@@ -179,14 +184,17 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                   SizedBox(height: 16.h),
                   _buildDetailRow(
                     'Location',
-                    widget.taskData['pickupLocation'],
+                    widget.taskData['pickupLocation']?.toString() ?? 'N/A',
                   ),
                   _buildDetailRow(
                     'Scheduled Time',
-                    widget.taskData['pickupTime'],
+                    widget.taskData['pickupTime']?.toString() ?? 'N/A',
                   ),
                   _buildDetailRow('Product Type', 'Palm Kernel Shell'),
-                  _buildDetailRow('Quantity', widget.taskData['quantity']),
+                  _buildDetailRow(
+                    'Quantity',
+                    widget.taskData['quantity']?.toString() ?? 'N/A',
+                  ),
                   _buildDetailRow('Weight Check', 'Required'),
                 ],
               ),
@@ -210,16 +218,22 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                   SizedBox(height: 16.h),
                   _buildDetailRow(
                     'Destination',
-                    widget.taskData['destination'],
+                    widget.taskData['destination']?.toString() ?? 'N/A',
                   ),
-                  _buildDetailRow('Customer', widget.taskData['customerName']),
+                  _buildDetailRow(
+                    'Customer',
+                    widget.taskData['customerName']?.toString() ?? 'N/A',
+                  ),
                   _buildDetailRow('Contact Person', 'Budi Santoso'),
                   _buildDetailRow('Phone', '+62 812-3456-7890'),
                   _buildDetailRow(
                     'Estimated Time',
-                    widget.taskData['estimatedDelivery'],
+                    widget.taskData['estimatedDelivery']?.toString() ?? 'N/A',
                   ),
-                  _buildDetailRow('Distance', widget.taskData['distance']),
+                  _buildDetailRow(
+                    'Distance',
+                    widget.taskData['distance']?.toString() ?? 'N/A',
+                  ),
                 ],
               ),
             ),
@@ -387,32 +401,13 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
   }
 
   void _showStartTaskDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Start Task'),
-        content: const Text(
-          'Are you ready to start this delivery task? Make sure you have completed the pre-trip inspection.',
+    // Navigate to navigation screen instead of just showing dialog
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DriverNavigationScreen(
+          shipment: Shipment.fromJson(widget.taskData),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // TODO: Implement start task logic
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Task started successfully'),
-                  backgroundColor: Color(0xFF1B5E20),
-                ),
-              );
-            },
-            child: const Text('Start'),
-          ),
-        ],
       ),
     );
   }

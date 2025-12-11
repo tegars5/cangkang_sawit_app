@@ -16,6 +16,8 @@ class UserProfile {
   final String? city;
   final String? province;
   final String? postalCode;
+  final double? latitude;
+  final double? longitude;
   // Driver specific fields
   final String? driverLicense;
   final String? vehicleType;
@@ -39,6 +41,8 @@ class UserProfile {
     this.city,
     this.province,
     this.postalCode,
+    this.latitude,
+    this.longitude,
     this.driverLicense,
     this.vehicleType,
     this.vehiclePlate,
@@ -65,6 +69,12 @@ class UserProfile {
       city: json['city'] as String?,
       province: json['province'] as String?,
       postalCode: json['postal_code'] as String?,
+      latitude: json['latitude'] != null
+          ? (json['latitude'] as num).toDouble()
+          : null,
+      longitude: json['longitude'] != null
+          ? (json['longitude'] as num).toDouble()
+          : null,
       driverLicense: json['driver_license'] as String?,
       vehicleType: json['vehicle_type'] as String?,
       vehiclePlate: json['vehicle_plate'] as String?,
@@ -90,6 +100,8 @@ class UserProfile {
       'city': city,
       'province': province,
       'postal_code': postalCode,
+      'latitude': latitude,
+      'longitude': longitude,
       'driver_license': driverLicense,
       'vehicle_type': vehicleType,
       'vehicle_plate': vehiclePlate,
@@ -149,6 +161,8 @@ class UserProfile {
     String? city,
     String? province,
     String? postalCode,
+    double? latitude,
+    double? longitude,
     String? driverLicense,
     String? vehicleType,
     String? vehiclePlate,
@@ -169,6 +183,8 @@ class UserProfile {
       city: city ?? this.city,
       province: province ?? this.province,
       postalCode: postalCode ?? this.postalCode,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
       driverLicense: driverLicense ?? this.driverLicense,
       vehicleType: vehicleType ?? this.vehicleType,
       vehiclePlate: vehiclePlate ?? this.vehiclePlate,

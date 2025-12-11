@@ -65,6 +65,11 @@ class UserRepository {
     }
   }
 
+  /// Get user profile (alias for getUserById for consistency)
+  Future<UserProfile?> getUserProfile(String userId) async {
+    return getUserById(userId);
+  }
+
   /// Get all active drivers
   static Future<List<UserProfile>> getActiveDrivers() async {
     return getUsersByRole('driver');

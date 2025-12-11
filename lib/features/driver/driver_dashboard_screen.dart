@@ -8,6 +8,7 @@ import '../../core/repositories/shipment_repository.dart';
 import '../../shared/models/shipment.dart';
 import '../../widgets/common/logout_button.dart';
 import 'pages/task_detail_page.dart';
+import 'pages/driver_navigation_screen.dart';
 
 class DriverDashboardScreen extends ConsumerStatefulWidget {
   const DriverDashboardScreen({super.key});
@@ -53,7 +54,10 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
           .where((s) => s.status == 'in_transit')
           .toList();
 
-      final pending = allShipments.where((s) => s.status == 'pending').toList();
+      // Pending includes both 'pending' and 'assigned' status
+      final pending = allShipments
+          .where((s) => s.status == 'pending' || s.status == 'assigned')
+          .toList();
 
       // Get completed today
       final now = DateTime.now();
@@ -348,12 +352,12 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => TaskDetailPage(taskData: shipment.toJson()),
+                    builder: (_) => DriverNavigationScreen(shipment: shipment),
                   ),
                 ).then((_) => _loadDashboardData());
               },
               icon: const Icon(Icons.navigation),
-              label: const Text('Lihat Detail & Navigasi'),
+              label: const Text('Lanjutkan Navigasi'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.orange,
                 foregroundColor: Colors.white,

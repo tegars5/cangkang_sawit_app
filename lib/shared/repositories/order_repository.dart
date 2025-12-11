@@ -211,6 +211,61 @@ class OrderRepository {
     }
   }
 
+  /// Create order with automatic shipment creation
+  /// This is the recommended method for creating orders from Mitra
+  ///
+  /// Parameters:
+  /// - [order]: Order object
+  /// - [items]: List of OrderDetail
+  ///
+  /// Returns: Map with orderId and shipmentId
+  Future<Map<String, String>> createOrderWithShipment({
+    required Order order,
+    required List<OrderDetail> items,
+  }) async {
+    try {
+      // Step 1: Create the order
+      final orderId = await createOrder(order: order, items: items);
+
+      // Step 2: Generate delivery note number
+      final deliveryNoteNumber = _generateDeliveryNoteNumber(orderId);
+
+      // Step 3: Create shipment record
+      final shipmentData = {
+        'order_id': orderId,
+        'driver_id': null, // Will be assigned by admin later
+        'delivery_note_number': deliveryNoteNumber,
+        'status': 'pending', // Initial status
+        'destination_lat': null, // Can be added later
+        'destination_lng': null,
+        'created_at': DateTime.now().toIso8601String(),
+      };
+
+      final shipmentResponse = await _supabaseService.client
+          .from('shipments')
+          .insert(shipmentData)
+          .select('id')
+          .single();
+
+      final shipmentId = shipmentResponse['id'] as String;
+
+      debugPrint('✅ Order created: $orderId');
+      debugPrint('✅ Shipment created: $shipmentId');
+
+      return {'orderId': orderId, 'shipmentId': shipmentId};
+    } catch (e) {
+      debugPrint('❌ Error creating order with shipment: $e');
+      throw Exception('Gagal membuat pesanan dan pengiriman: $e');
+    }
+  }
+
+  /// Generate unique delivery note number
+  String _generateDeliveryNoteNumber(String orderId) {
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final shortOrderId = orderId.substring(0, 8);
+    return 'DN-$shortOrderId-$timestamp';
+  }
+
   /// Rollback order if order details insert fails
   Future<void> _rollbackOrder(String orderId) async {
     try {
