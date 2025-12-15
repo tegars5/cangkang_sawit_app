@@ -10,8 +10,15 @@ import '../features/auth/domain/usecases/register.dart';
 import '../features/auth/domain/usecases/logout.dart';
 import '../features/auth/domain/usecases/get_current_user.dart';
 
+// Products Feature Imports
+import '../features/products/data/datasources/product_remote_datasource.dart';
+import '../features/products/data/repositories/product_repository_impl.dart';
+import '../features/products/domain/repositories/product_repository.dart';
+import '../features/products/domain/usecases/get_products.dart';
+import '../features/products/domain/usecases/get_product_by_id.dart';
+import '../features/products/domain/usecases/search_products.dart';
+
 // TODO: Add imports for other features as they are implemented
-// import '../features/products/...';
 // import '../features/orders/...';
 // import '../features/tracking/...';
 // import '../features/shipments/...';
@@ -40,7 +47,7 @@ final authRemoteDataSourceProvider = Provider((ref) {
 });
 
 // Repositories
-final authRepositoryProvider = Provider((ref) {
+final authRepositoryProvider = Provider<AuthRepository>((ref) {
   final dataSource = ref.watch(authRemoteDataSourceProvider);
   return AuthRepositoryImpl(remoteDataSource: dataSource);
 });
@@ -77,7 +84,7 @@ final productRemoteDataSourceProvider = Provider((ref) {
 });
 
 // Repositories
-final productRepositoryProvider = Provider((ref) {
+final productRepositoryProvider = Provider<ProductRepository>((ref) {
   final dataSource = ref.watch(productRemoteDataSourceProvider);
   return ProductRepositoryImpl(remoteDataSource: dataSource);
 });
@@ -91,6 +98,11 @@ final getProductsUseCaseProvider = Provider((ref) {
 final getProductByIdUseCaseProvider = Provider((ref) {
   final repository = ref.watch(productRepositoryProvider);
   return GetProductById(repository);
+});
+
+final searchProductsUseCaseProvider = Provider((ref) {
+  final repository = ref.watch(productRepositoryProvider);
+  return SearchProducts(repository);
 });
 
 // ============================================================================
