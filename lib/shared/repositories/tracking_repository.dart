@@ -1,6 +1,5 @@
+import 'package:cangkang_sawit_app/shared/models/driver_location.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../data/models/shipment_timeline.dart';
-import '../../data/models/driver_location.dart';
 import '../models/models.dart' hide DriverLocation;
 
 /// Repository for tracking shipment progress in real-time

@@ -1,67 +1,73 @@
-1. Penjelasan Alur Aplikasi (Flow)
-Aplikasi ini adalah Sistem Supply Chain Cangkang Sawit yang melibatkan 3 Aktor Utama. Bayangkan alurnya seperti estafet barang:
+Prompt: Perbaikan Code Flutter + Supabase dengan Clean Architecture
+Kamu adalah seorang senior Flutter developer yang berpengalaman dalam menerapkan Clean Architecture dan Supabase.
+Tolong review dan perbaiki seluruh kode di branch v2 dari repo berikut:
 
-A. Mitra (Pembeli/Klien)
-Tugas: Membeli cangkang sawit.
+Repo: https://github.com/tegars5/cangkang_sawit_app/tree/v2
 
-Alur:
+Aplikasi ini adalah aplikasi penjualan dan pengiriman cangkang sawit dengan fitur tracking real-time menggunakan Google Maps API, terinspirasi dari alur Gojek/Grab.
+Fitur utama:
 
-Login/Register: Masuk ke aplikasi.
+Mitra membuat pesanan dan bisa melihat tracking progress driver secara real-time.
 
-Dashboard: Melihat ringkasan (Product Catalog).
+Admin mengelola produk, pesanan, membuat surat jalan, dan menugaskan driver.
 
-Create Order: Memilih produk -> Masukkan jumlah (tonase) -> Checkout.
+Driver menerima notifikasi, melihat alamat tujuan di peta, dan mengupdate status pengiriman.
 
-Tracking: Memantau pesanan yang sedang dikirim (mirip Gojek/Grab, bisa lihat lokasi Driver).
+Tech stack:
 
-History: Melihat riwayat pesanan selesai.
+Flutter (frontend)
 
-B. Admin (Pengelola)
-Tugas: Mengatur pesanan & logistik.
+Supabase (backend: auth, database, realtime)
 
-Alur:
+Google Maps API (tracking lokasi)
 
-Manage Orders: Menerima pesanan dari Mitra (Status: Pending -> Confirmed).
+Fokus Perbaikan
+Struktur Project (Clean Architecture)
 
-Prepare Shipment: Setelah pesanan dikonfirmasi, Admin membuat "Pengiriman" (Shipment) dan menetapkan Driver (Assign Driver) serta kendaraan.
+Pisahkan kode ke dalam 3 layer utama:
 
-Monitoring: Admin bisa melihat semua lokasi driver secara real-time di peta.
+Presentation Layer: Widget Flutter dan state management (Bloc/Riverpod).
 
-C. Driver (Kurir)
-Tugas: Mengantar barang.
+Domain Layer: Entities, use cases, dan business logic.
 
-Alur:
+Data Layer: Repositories, data sources, dan model.
 
-Task List: Menerima tugas pengiriman baru dari Admin.
+Gunakan pendekatan feature-first: setiap fitur (auth, product, order, delivery, tracking) punya folder sendiri di tiap layer.
 
-Update Status:
+Dependency Injection
 
-On the way to Pickup (Menuju gudang muat).
+Gunakan package seperti get_it atau riverpod untuk dependency injection agar kode lebih modular dan mudah di-test.
 
-Loading (Sedang memuat cangkang sawit).
+State Management
 
-On Delivery (Sedang jalan ke lokasi Mitra -> GPS Tracking Aktif).
+Gunakan Bloc atau Riverpod untuk mengelola state aplikasi.
 
-Arrived/Unloading (Sampai).
+Pisahkan business logic dari UI (jangan ada logic bisnis di widget).
 
-Completed (Selesai).
+Supabase Integration
 
-Upload Bukti: Biasanya upload foto surat jalan/barang sampai.
+Inisialisasi Supabase client di satu tempat (misalnya di lib/core/supabase/supabase_client.dart).
 
-2. Masalah Utama di Kodingan (Kenapa Kakak Bingung)
-Dari daftar file, saya menemukan DUPLIKASI PARAH yang harus dibersihkan:
+Gunakan environment variable untuk menyimpan URL dan key, jangan hardcode di kode.
 
-Model Ganda (Bahaya): Kakak punya lib/data/models/order.dart DAN lib/shared/models/order.dart.
+Repository harus berinteraksi dengan Supabase, bukan langsung di widget.
 
-Masalah: Kalau Kakak update satu file, file yang lain tidak berubah. Nanti error "Type Mismatch" di mana-mana.
+Realtime Tracking
 
-Solusi: Hapus folder lib/data/models, pindahkan semua ke lib/shared/models (atau sebaliknya, pilih satu saja).
+Gunakan Supabase Realtime untuk tracking lokasi driver.
 
-State Management Gado-gado: Ada folder controllers (biasanya istilah GetX/MVC) di lib/features/admin/controllers, tapi ada juga providers (Riverpod/Provider) di lib/features/admin/providers.
+Driver mengirim lokasi ke tabel khusus, mitra subscribe untuk melihat update real-time.
 
-Masalah: Membingungkan cara update datanya.
+Gunakan Google Maps SDK untuk menampilkan marker lokasi driver.
 
-Solusi: Standarisasi. Gunakan satu istilah (misal: semua pakai Provider/Notifier).
+Error Handling
 
-File Sampah: Ada lib/main_clean.dart. Ini file percobaan yang lupa dihapus? Sebaiknya hanya ada satu main.dart. Ada folder lib/debug dan lib/utils/test_user_creator.dart yang tercampur di production code.
+Tambahkan error handling di setiap operasi Supabase dan tampilkan feedback ke pengguna.
 
+Testing
+
+Tambahkan unit test dan widget test untuk fitur utama.
+
+Navigation & Routing
+
+Gunakan package seperti go_router untuk mengatur navigasi dan alur aplikasi.

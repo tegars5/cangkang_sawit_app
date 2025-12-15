@@ -1,6 +1,7 @@
+import 'package:cangkang_sawit_app/shared/models/shipment.dart';
 import 'package:dartz/dartz.dart' as dartz;
-import '../../../core/error/failures.dart';
-import '../../../shared/models/models.dart';
+import '../../../../core/error/failures.dart';
+import '../../../../shared/models/shipment_timeline.dart';
 
 /// Repository interface for Shipment operations
 abstract class ShipmentRepository {

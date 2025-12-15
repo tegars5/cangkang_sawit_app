@@ -46,3 +46,15 @@ class NotFoundFailure extends Failure {
   const NotFoundFailure([String message = 'Resource not found'])
     : super(message);
 }
+
+/// Permission failure - when user doesn't have access
+class PermissionFailure extends Failure {
+  const PermissionFailure([String message = 'Permission denied'])
+    : super(message);
+}
+
+/// Unknown failure - for unexpected errors
+class UnknownFailure extends Failure {
+  const UnknownFailure([String message = 'An unexpected error occurred'])
+    : super(message);
+}

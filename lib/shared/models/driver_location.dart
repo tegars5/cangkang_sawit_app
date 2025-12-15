@@ -146,6 +146,25 @@ class DriverLocation {
     return '${altitude!.toStringAsFixed(1)} m';
   }
 
+  /// Alias untuk formattedHeading - untuk kompatibilitas dengan driver_info_card
+  String get directionText => formattedHeading;
+
+  /// Helper method untuk format waktu relatif (time ago)
+  String get timeAgo {
+    final now = DateTime.now();
+    final difference = now.difference(timestamp);
+
+    if (difference.inSeconds < 60) {
+      return '${difference.inSeconds} detik lalu';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes} menit lalu';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours} jam lalu';
+    } else {
+      return '${difference.inDays} hari lalu';
+    }
+  }
+
   /// Helper method untuk menghitung jarak ke koordinat lain (dalam meter)
   /// Menggunakan formula Haversine
   double distanceTo(double lat2, double lon2) {

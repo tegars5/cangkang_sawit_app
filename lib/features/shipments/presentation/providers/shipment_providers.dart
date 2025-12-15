@@ -1,4 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart'
+    show StateNotifier, StateNotifierProvider;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../shared/models/models.dart';
 import '../../domain/repositories/shipment_repository.dart';

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import '../../../shared/models/models.dart' hide DriverLocation;
-import '../../../data/models/driver_location.dart';
+import '../../../shared/models/models.dart';
 
 /// Card widget to display driver information and current status
 class DriverInfoCard extends StatelessWidget {

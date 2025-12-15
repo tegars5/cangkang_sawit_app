@@ -186,15 +186,18 @@ class _ComprehensiveTestWidgetState extends State<ComprehensiveTestWidget> {
 
             SizedBox(height: 16.h),
 
-            // Professional Create Users Button
+            // Professional Create Users Button - DISABLED (method commented out)
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: _isLoading ? null : _createTestUsersWithAnimation,
+                onPressed:
+                    null, // Disabled - _createTestUsersWithAnimation is commented out
                 icon: const Icon(Icons.group_add),
-                label: const Text('Create Test Users (Professional)'),
+                label: const Text(
+                  'Create Test Users (Professional) - DISABLED',
+                ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue[600],
+                  backgroundColor: Colors.grey, // Disabled color
                   foregroundColor: Colors.white,
                   padding: EdgeInsets.symmetric(vertical: 12.h),
                 ),

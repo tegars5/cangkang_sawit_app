@@ -7,7 +7,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'core/constants/app_constants.dart';
 import 'shared/providers/auth_provider.dart';
-import 'features/auth/login_screen.dart';
+import 'features/auth/presentation/pages/login_screen.dart';
 import 'features/mitra/mitra_dashboard_screen.dart';
 import 'features/admin/pages/admin_main_layout.dart';
 import 'features/driver/driver_dashboard_screen.dart';

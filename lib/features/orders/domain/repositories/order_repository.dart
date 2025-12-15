@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart' hide Order;
-import '../../../core/error/failures.dart';
-import '../../../shared/models/models.dart';
+import '../../../../core/error/failures.dart';
+import '../../../../shared/models/order.dart';
+
 
 /// Repository interface for Order operations
 /// This defines the contract that the data layer must implement

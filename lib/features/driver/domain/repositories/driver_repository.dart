@@ -1,6 +1,6 @@
 import 'package:dartz/dartz.dart' as dartz;
-import '../../../core/error/failures.dart';
-import '../../../shared/models/models.dart';
+import '../../../../core/error/failures.dart';
+import '../../../../shared/models/shipment.dart';
 
 /// Repository interface for Driver operations
 abstract class DriverRepository {

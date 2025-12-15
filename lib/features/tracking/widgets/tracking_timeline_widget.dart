@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import '../../../data/models/shipment_timeline.dart';
+
+import '../../../shared/models/shipment_timeline.dart';
 
 /// Widget to display shipment timeline in vertical format
 class TrackingTimelineWidget extends StatelessWidget {

@@ -1,6 +1,6 @@
+import 'package:cangkang_sawit_app/core/error/failures.dart' show Failure;
 import 'package:dartz/dartz.dart' as dartz;
-import '../../../core/error/failures.dart';
-import '../../../shared/models/models.dart';
+import '../../../../shared/models/user_profile.dart';
 
 /// Repository interface for Authentication operations
 abstract class AuthRepository {
