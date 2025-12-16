@@ -13,3 +13,8 @@ abstract class UseCase<Type, Params> {
 abstract class UseCaseNoParams<Type> {
   Future<dartz.Either<Failure, Type>> call();
 }
+
+/// Class representing no parameters for use cases
+class NoParams {
+  const NoParams();
+}

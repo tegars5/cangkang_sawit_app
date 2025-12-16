@@ -59,3 +59,73 @@ class NotFoundException implements Exception {
   @override
   String toString() => 'NotFoundException: $message';
 }
+
+/// Permission exception - when user doesn't have required permissions
+class PermissionException implements Exception {
+  final String message;
+
+  const PermissionException([this.message = 'Permission denied']);
+
+  @override
+  String toString() => 'PermissionException: $message';
+}
+
+/// Unauthorized exception - when user is not authenticated
+class UnauthorizedException implements Exception {
+  final String message;
+
+  const UnauthorizedException([this.message = 'Unauthorized access']);
+
+  @override
+  String toString() => 'UnauthorizedException: $message';
+}
+
+/// Conflict exception - when there's a data conflict (e.g., duplicate entry)
+class ConflictException implements Exception {
+  final String message;
+
+  const ConflictException([this.message = 'Data conflict occurred']);
+
+  @override
+  String toString() => 'ConflictException: $message';
+}
+
+/// Timeout exception - when operation times out
+class TimeoutException implements Exception {
+  final String message;
+
+  const TimeoutException([this.message = 'Operation timed out']);
+
+  @override
+  String toString() => 'TimeoutException: $message';
+}
+
+/// Bad request exception - when request data is invalid
+class BadRequestException implements Exception {
+  final String message;
+
+  const BadRequestException([this.message = 'Bad request']);
+
+  @override
+  String toString() => 'BadRequestException: $message';
+}
+
+/// File upload exception - when file upload fails
+class FileUploadException implements Exception {
+  final String message;
+
+  const FileUploadException([this.message = 'File upload failed']);
+
+  @override
+  String toString() => 'FileUploadException: $message';
+}
+
+/// Location exception - when location services fail
+class LocationException implements Exception {
+  final String message;
+
+  const LocationException([this.message = 'Location service error']);
+
+  @override
+  String toString() => 'LocationException: $message';
+}

@@ -1,4 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
+import 'package:state_notifier/state_notifier.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/usecases/usecase.dart';
 import '../../../../shared/models/user_profile.dart';
@@ -126,10 +128,10 @@ final authNotifierProvider = StateNotifierProvider<AuthNotifier, AuthState>((
   ref,
 ) {
   return AuthNotifier(
-    loginUseCase: ref.watch(loginUseCaseProvider),
-    registerUseCase: ref.watch(registerUseCaseProvider),
-    logoutUseCase: ref.watch(logoutUseCaseProvider),
-    getCurrentUserUseCase: ref.watch(getCurrentUserUseCaseProvider),
+    loginUseCase: ref.read(loginUseCaseProvider),
+    registerUseCase: ref.read(registerUseCaseProvider),
+    logoutUseCase: ref.read(logoutUseCaseProvider),
+    getCurrentUserUseCase: ref.read(getCurrentUserUseCaseProvider),
   );
 });
 

@@ -6,11 +6,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'core/constants/app_constants.dart';
-import 'shared/providers/auth_provider.dart';
-import 'features/auth/presentation/pages/login_screen.dart';
-import 'features/mitra/mitra_dashboard_screen.dart';
-import 'features/admin/pages/admin_main_layout.dart';
-import 'features/driver/driver_dashboard_screen.dart';
+import 'core/router/app_router.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,18 +26,20 @@ void main() async {
   runApp(const ProviderScope(child: MyApp()));
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends ConsumerWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final router = ref.watch(routerProvider);
+
     return ScreenUtilInit(
       designSize: const Size(375, 812),
       minTextAdapt: true,
       splitScreenMode: true,
       builder: (context, child) {
-        return MaterialApp(
-          title: 'Cangkang Sawit App',
+        return MaterialApp.router(
+          title: AppConstants.appName,
           debugShowCheckedModeBanner: false,
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(
@@ -51,56 +49,9 @@ class MyApp extends StatelessWidget {
             useMaterial3: true,
             fontFamily: 'Roboto',
           ),
-          home: const AuthCheck(),
+          routerConfig: router,
         );
       },
     );
-  }
-}
-
-/// Widget to check authentication status using AuthProvider
-/// Clean architecture - no direct Supabase calls
-class AuthCheck extends ConsumerWidget {
-  const AuthCheck({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final authState = ref.watch(authStateProvider);
-
-    // Show loading while checking auth
-    if (authState.isLoading) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(color: Color(0xFF2E7D32)),
-        ),
-      );
-    }
-
-    // If authenticated and has profile, navigate to appropriate dashboard
-    if (authState.isAuthenticated && authState.profile != null) {
-      final roleId = authState.profile!.roleId;
-      if (roleId != null) {
-        return _getDashboardForRole(roleId);
-      }
-    }
-
-    // Not authenticated - show login
-    return const LoginScreen();
-  }
-
-  Widget _getDashboardForRole(int roleId) {
-    switch (roleId) {
-      case 1: // Admin
-        return const AdminMainLayout();
-      case 2: // Mitra
-      case 11: // Mitra Bisnis (alternative ID)
-        return const MitraDashboardScreen();
-      case 3: // Driver
-      case 12: // Driver (alternative ID)
-        return const DriverDashboardScreen();
-      default:
-        // Fallback: check role name from profile
-        return const LoginScreen(); // Redirect to login if unknown role
-    }
   }
 }

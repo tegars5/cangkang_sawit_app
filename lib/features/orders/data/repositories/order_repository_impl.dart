@@ -1,129 +1,106 @@
-import 'package:dartz/dartz.dart' as dartz;
+import 'package:dartz/dartz.dart' hide Order;
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/error/failures.dart';
-import '../../../../shared/models/models.dart';
+import '../../domain/entities/order.dart';
 import '../../domain/repositories/order_repository.dart';
 import '../datasources/order_remote_datasource.dart';
+import '../models/order_model.dart';
 
 /// Implementation of OrderRepository
-/// Connects domain layer with data layer
 class OrderRepositoryImpl implements OrderRepository {
-  final OrderRemoteDataSource _remoteDataSource;
+  final OrderRemoteDataSource remoteDataSource;
 
-  OrderRepositoryImpl({required OrderRemoteDataSource remoteDataSource})
-    : _remoteDataSource = remoteDataSource;
+  OrderRepositoryImpl({required this.remoteDataSource});
 
   @override
-  Future<dartz.Either<Failure, List<Order>>> getOrders({
-    String? status,
+  Future<Either<Failure, List<Order>>> getOrders({
     String? customerId,
+    String? status,
   }) async {
     try {
-      final orders = await _remoteDataSource.getOrders(
-        status: status,
+      final orderModels = await remoteDataSource.getOrders(
         customerId: customerId,
+        status: status,
       );
-      return dartz.Right(orders);
+      return Right(orderModels.map((model) => model.toDomain()).toList());
     } on ServerException catch (e) {
-      return dartz.Left(ServerFailure(e.message));
-    } on NetworkException catch (e) {
-      return dartz.Left(NetworkFailure(e.message));
-    } catch (e) {
-      return dartz.Left(ServerFailure('Unexpected error: $e'));
-    }
-  }
-
-  @override
-  Future<dartz.Either<Failure, Order>> getOrderById(String orderId) async {
-    try {
-      final order = await _remoteDataSource.getOrderById(orderId);
-      return dartz.Right(order);
+      return Left(ServerFailure(e.message));
     } on NotFoundException catch (e) {
-      return dartz.Left(NotFoundFailure(e.message));
-    } on ServerException catch (e) {
-      return dartz.Left(ServerFailure(e.message));
+      return Left(NotFoundFailure(e.message));
     } catch (e) {
-      return dartz.Left(ServerFailure('Unexpected error: $e'));
+      return Left(ServerFailure('Unexpected error: $e'));
     }
   }
 
   @override
-  Future<dartz.Either<Failure, Order>> createOrder({
-    required Order order,
-    required List<OrderDetail> items,
-  }) async {
+  Future<Either<Failure, Order>> getOrderById(String id) async {
     try {
-      final createdOrder = await _remoteDataSource.createOrder(
-        order: order,
-        items: items,
-      );
-      return dartz.Right(createdOrder);
-    } on ValidationException catch (e) {
-      return dartz.Left(ValidationFailure(e.message));
-    } on ServerException catch (e) {
-      return dartz.Left(ServerFailure(e.message));
-    } catch (e) {
-      return dartz.Left(ServerFailure('Unexpected error: $e'));
-    }
-  }
-
-  @override
-  Future<dartz.Either<Failure, Order>> confirmOrder({
-    required String orderId,
-    required List<Map<String, dynamic>> confirmedItems,
-  }) async {
-    try {
-      final confirmedOrder = await _remoteDataSource.confirmOrder(
-        orderId: orderId,
-        confirmedItems: confirmedItems,
-      );
-      return dartz.Right(confirmedOrder);
+      final orderModel = await remoteDataSource.getOrderById(id);
+      return Right(orderModel.toDomain());
     } on NotFoundException catch (e) {
-      return dartz.Left(NotFoundFailure(e.message));
+      return Left(NotFoundFailure(e.message));
     } on ServerException catch (e) {
-      return dartz.Left(ServerFailure(e.message));
+      return Left(ServerFailure(e.message));
     } catch (e) {
-      return dartz.Left(ServerFailure('Unexpected error: $e'));
+      return Left(ServerFailure('Unexpected error: $e'));
     }
   }
 
   @override
-  Future<dartz.Either<Failure, Order>> cancelOrder({
-    required String orderId,
-    required String reason,
-  }) async {
+  Future<Either<Failure, Order>> createOrder(Order order) async {
     try {
-      final cancelledOrder = await _remoteDataSource.cancelOrder(
-        orderId: orderId,
-        reason: reason,
-      );
-      return dartz.Right(cancelledOrder);
-    } on NotFoundException catch (e) {
-      return dartz.Left(NotFoundFailure(e.message));
+      final orderModel = OrderModel.fromDomain(order);
+      final createdOrderModel = await remoteDataSource.createOrder(orderModel);
+      return Right(createdOrderModel.toDomain());
     } on ServerException catch (e) {
-      return dartz.Left(ServerFailure(e.message));
+      return Left(ServerFailure(e.message));
     } catch (e) {
-      return dartz.Left(ServerFailure('Unexpected error: $e'));
+      return Left(ServerFailure('Unexpected error: $e'));
     }
   }
 
   @override
-  Future<dartz.Either<Failure, Order>> updateOrderStatus({
-    required String orderId,
-    required String newStatus,
-  }) async {
+  Future<Either<Failure, Order>> confirmOrder(
+    String id,
+    double confirmedQuantity,
+  ) async {
     try {
-      final updatedOrder = await _remoteDataSource.updateOrderStatus(
-        orderId: orderId,
-        newStatus: newStatus,
+      final orderModel = await remoteDataSource.confirmOrder(
+        id,
+        confirmedQuantity,
       );
-      return dartz.Right(updatedOrder);
-    } on NotFoundException catch (e) {
-      return dartz.Left(NotFoundFailure(e.message));
+      return Right(orderModel.toDomain());
     } on ServerException catch (e) {
-      return dartz.Left(ServerFailure(e.message));
+      return Left(ServerFailure(e.message));
     } catch (e) {
-      return dartz.Left(ServerFailure('Unexpected error: $e'));
+      return Left(ServerFailure('Unexpected error: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, Order>> cancelOrder(String id, String reason) async {
+    try {
+      final orderModel = await remoteDataSource.cancelOrder(id, reason);
+      return Right(orderModel.toDomain());
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } catch (e) {
+      return Left(ServerFailure('Unexpected error: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, Order>> updateOrderStatus(
+    String id,
+    String status,
+  ) async {
+    try {
+      final orderModel = await remoteDataSource.updateOrderStatus(id, status);
+      return Right(orderModel.toDomain());
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } catch (e) {
+      return Left(ServerFailure('Unexpected error: $e'));
     }
   }
 }

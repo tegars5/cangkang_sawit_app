@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../widgets/lottie_animations.dart';
 
 class ForgotPasswordScreen extends ConsumerStatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -36,9 +35,15 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       if (mounted) {
         await showDialog(
           context: context,
-          builder: (context) => const LottieSuccessDialog(
-            title: 'Reset Link Sent!',
-            message: 'Check your email for password reset instructions',
+          builder: (context) => AlertDialog(
+            title: const Text('Reset Link Sent!'),
+            content: const Text('Check your email for password reset instructions'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
           ),
         );
         Navigator.pop(context);

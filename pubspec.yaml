@@ -37,9 +37,16 @@ dependencies:
 
   # State Management
   flutter_riverpod: ^3.0.3
+  state_notifier: ^1.0.0
 
   # Supabase Integration
   supabase_flutter: ^2.10.3
+
+  # Routing
+  go_router: ^14.6.2
+
+  # Functional Programming
+  dartz: ^0.10.1
 
   # Maps & Location
   flutter_map: ^7.0.2
@@ -51,31 +58,27 @@ dependencies:
 
   # Path utilities
   path: ^1.9.0
+  file_picker: ^8.1.6
 
   # Background Services
   flutter_background_service: ^5.0.7
 
-  # Animations
-  lottie: ^3.1.2
-
   # Improved UI Components
   animated_text_kit: ^4.2.2
-  shimmer: ^3.0.0
 
   # File Operations
-  file_picker: ^8.0.0+1
-  image_picker: ^1.1.2
   flutter_image_compress: ^2.3.0
 
   # Networking & Storage
   http: ^1.2.2
-  path_provider: ^2.1.4
 
-  # UI Components
+  # UI
   flutter_screenutil: ^5.9.3
+  lottie: ^3.2.1
+  shimmer: ^3.0.0
+  cached_network_image: ^3.4.1
 
   # Utilities
-  intl: ^0.20.2
   url_launcher: ^6.3.0
   permission_handler: ^11.3.1
   uuid: ^4.5.2
@@ -89,7 +92,6 @@ dependencies:
   freezed_annotation: ^3.1.0
   json_annotation: ^4.9.0
   equatable: ^2.0.7
-  dartz: ^0.10.1
 
 dev_dependencies:
   flutter_test:

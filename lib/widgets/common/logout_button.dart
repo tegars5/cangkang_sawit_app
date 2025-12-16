@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import '../../features/auth/controllers/logout_controller.dart';
-import '../../features/auth/login_screen.dart';
+import 'package:go_router/go_router.dart';
+import '../../features/auth/presentation/providers/auth_notifier.dart';
+import '../../features/auth/presentation/providers/auth_state.dart';
+import '../../core/router/app_router.dart';
 
-/// Reusable logout button widget
+/// Reusable logout button widget using Clean Architecture
 /// Can be used as IconButton or full-width button
 class LogoutButton extends ConsumerWidget {
   final bool isFullWidth;
@@ -47,49 +49,38 @@ class LogoutButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final logoutState = ref.watch(logoutControllerProvider);
+    final authState = ref.watch(authNotifierProvider);
 
-    // Listen to logout state changes
-    ref.listen<LogoutState>(logoutControllerProvider, (previous, next) {
-      if (next.isSuccess) {
-        // Navigate to login screen on success
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const LoginScreen()),
-          (route) => false,
-        );
-        // Reset state
-        ref.read(logoutControllerProvider.notifier).reset();
-      } else if (next.error != null) {
+    // Listen to auth state changes
+    ref.listen<AuthState>(authNotifierProvider, (previous, next) {
+      if (!next.isAuthenticated && (previous?.isAuthenticated ?? false)) {
+        // User logged out successfully, navigate to login
+        context.go(AppRouter.login);
+      }
+
+      if (next.errorMessage != null) {
         // Show error message
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(next.error!),
+            content: Text(next.errorMessage!),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
           ),
         );
-        // Reset state
-        ref.read(logoutControllerProvider.notifier).reset();
       }
     });
 
     if (isFullWidth) {
-      return _buildFullWidthButton(context, ref, logoutState);
+      return _buildFullWidthButton(context, ref, authState.isLoading);
     } else {
-      return _buildIconButton(context, ref, logoutState);
+      return _buildIconButton(context, ref, authState.isLoading);
     }
   }
 
-  Widget _buildIconButton(
-    BuildContext context,
-    WidgetRef ref,
-    LogoutState logoutState,
-  ) {
+  Widget _buildIconButton(BuildContext context, WidgetRef ref, bool isLoading) {
     return IconButton(
-      onPressed: logoutState.isLoading
-          ? null
-          : () => _showLogoutConfirmation(context, ref),
-      icon: logoutState.isLoading
+      onPressed: isLoading ? null : () => _showLogoutConfirmation(context, ref),
+      icon: isLoading
           ? SizedBox(
               width: 20.w,
               height: 20.h,
@@ -108,12 +99,12 @@ class LogoutButton extends ConsumerWidget {
   Widget _buildFullWidthButton(
     BuildContext context,
     WidgetRef ref,
-    LogoutState logoutState,
+    bool isLoading,
   ) {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: logoutState.isLoading
+        onPressed: isLoading
             ? null
             : () => _showLogoutConfirmation(context, ref),
         style: ElevatedButton.styleFrom(
@@ -125,7 +116,7 @@ class LogoutButton extends ConsumerWidget {
           ),
           elevation: 0,
         ),
-        child: logoutState.isLoading
+        child: isLoading
             ? SizedBox(
                 height: 20.h,
                 width: 20.w,
@@ -176,8 +167,8 @@ class LogoutButton extends ConsumerWidget {
           TextButton(
             onPressed: () {
               Navigator.of(dialogContext).pop();
-              // Perform logout using controller
-              ref.read(logoutControllerProvider.notifier).logout();
+              // Perform logout using AuthNotifier
+              ref.read(authNotifierProvider.notifier).logout();
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: Text(

@@ -1,47 +1,26 @@
-import 'package:dartz/dartz.dart' as dartz;
+import 'package:dartz/dartz.dart' hide Order;
 import '../../../../core/error/failures.dart';
 import '../../../../core/usecases/usecase.dart';
-import '../../../../shared/models/models.dart';
+import '../entities/order.dart';
 import '../repositories/order_repository.dart';
 
-/// Use case for creating orders
-class CreateOrder implements UseCase<Order, CreateOrderParams> {
+/// Use case for creating a new order
+class CreateOrder implements UseCase<Order, Order> {
   final OrderRepository repository;
 
   CreateOrder(this.repository);
 
   @override
-  Future<dartz.Either<Failure, Order>> call(CreateOrderParams params) async {
-    // Business validation
-    if (params.items.isEmpty) {
-      return const dartz.Left(
-        ValidationFailure('Order must have at least one item'),
-      );
+  Future<Either<Failure, Order>> call(Order order) async {
+    // Validation
+    if (order.totalQuantity <= 0) {
+      return Left(ValidationFailure('Total quantity must be greater than 0'));
     }
 
-    if (params.order.totalQuantity <= 0) {
-      return const dartz.Left(
-        ValidationFailure('Total quantity must be greater than zero'),
-      );
+    if (order.totalAmount <= 0) {
+      return Left(ValidationFailure('Total amount must be greater than 0'));
     }
 
-    if (params.order.totalAmount <= 0) {
-      return const dartz.Left(
-        ValidationFailure('Total amount must be greater than zero'),
-      );
-    }
-
-    return await repository.createOrder(
-      order: params.order,
-      items: params.items,
-    );
+    return await repository.createOrder(order);
   }
-}
-
-/// Parameters for CreateOrder use case
-class CreateOrderParams {
-  final Order order;
-  final List<OrderDetail> items;
-
-  const CreateOrderParams({required this.order, required this.items});
 }

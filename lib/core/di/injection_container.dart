@@ -2,24 +2,33 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 // Auth Feature Imports
-import '../features/auth/data/datasources/auth_remote_datasource.dart';
-import '../features/auth/data/repositories/auth_repository_impl.dart';
-import '../features/auth/domain/repositories/auth_repository.dart';
-import '../features/auth/domain/usecases/login.dart';
-import '../features/auth/domain/usecases/register.dart';
-import '../features/auth/domain/usecases/logout.dart';
-import '../features/auth/domain/usecases/get_current_user.dart';
+import '../../features/auth/data/datasources/auth_remote_datasource.dart';
+import '../../features/auth/data/repositories/auth_repository_impl.dart';
+import '../../features/auth/domain/repositories/auth_repository.dart';
+import '../../features/auth/domain/usecases/login.dart';
+import '../../features/auth/domain/usecases/register.dart';
+import '../../features/auth/domain/usecases/logout.dart';
+import '../../features/auth/domain/usecases/get_current_user.dart';
 
 // Products Feature Imports
-import '../features/products/data/datasources/product_remote_datasource.dart';
-import '../features/products/data/repositories/product_repository_impl.dart';
-import '../features/products/domain/repositories/product_repository.dart';
-import '../features/products/domain/usecases/get_products.dart';
-import '../features/products/domain/usecases/get_product_by_id.dart';
-import '../features/products/domain/usecases/search_products.dart';
+import '../../features/products/data/datasources/product_remote_datasource.dart';
+import '../../features/products/data/repositories/product_repository_impl.dart';
+import '../../features/products/domain/repositories/product_repository.dart';
+import '../../features/products/domain/usecases/get_products.dart';
+import '../../features/products/domain/usecases/get_product_by_id.dart';
+import '../../features/products/domain/usecases/search_products.dart';
+
+// Orders Feature Imports
+import '../../features/orders/data/datasources/order_remote_datasource.dart';
+import '../../features/orders/data/repositories/order_repository_impl.dart';
+import '../../features/orders/domain/repositories/order_repository.dart';
+import '../../features/orders/domain/usecases/get_orders.dart';
+import '../../features/orders/domain/usecases/get_order_by_id.dart';
+import '../../features/orders/domain/usecases/create_order.dart';
+import '../../features/orders/domain/usecases/confirm_order.dart';
+import '../../features/orders/domain/usecases/cancel_order.dart';
 
 // TODO: Add imports for other features as they are implemented
-// import '../features/orders/...';
 // import '../features/tracking/...';
 // import '../features/shipments/...';
 // import '../features/driver/...';
@@ -90,17 +99,17 @@ final productRepositoryProvider = Provider<ProductRepository>((ref) {
 });
 
 // Use Cases
-final getProductsUseCaseProvider = Provider((ref) {
+final getProductsUseCaseProvider = Provider<GetProducts>((ref) {
   final repository = ref.watch(productRepositoryProvider);
   return GetProducts(repository);
 });
 
-final getProductByIdUseCaseProvider = Provider((ref) {
+final getProductByIdUseCaseProvider = Provider<GetProductById>((ref) {
   final repository = ref.watch(productRepositoryProvider);
   return GetProductById(repository);
 });
 
-final searchProductsUseCaseProvider = Provider((ref) {
+final searchProductsUseCaseProvider = Provider<SearchProducts>((ref) {
   final repository = ref.watch(productRepositoryProvider);
   return SearchProducts(repository);
 });
@@ -110,31 +119,41 @@ final searchProductsUseCaseProvider = Provider((ref) {
 // ============================================================================
 
 // Data Sources
-final orderRemoteDataSourceProvider = Provider((ref) {
+final orderRemoteDataSourceProvider = Provider<OrderRemoteDataSource>((ref) {
   final client = ref.watch(supabaseClientProvider);
-  return OrderRemoteDataSource(client: client);
+  return OrderRemoteDataSourceImpl(client: client);
 });
 
 // Repositories
-final orderRepositoryProvider = Provider((ref) {
+final orderRepositoryProvider = Provider<OrderRepository>((ref) {
   final dataSource = ref.watch(orderRemoteDataSourceProvider);
   return OrderRepositoryImpl(remoteDataSource: dataSource);
 });
 
 // Use Cases
-final getOrdersUseCaseProvider = Provider((ref) {
+final getOrdersUseCaseProvider = Provider<GetOrders>((ref) {
   final repository = ref.watch(orderRepositoryProvider);
   return GetOrders(repository);
 });
 
-final createOrderUseCaseProvider = Provider((ref) {
+final getOrderByIdUseCaseProvider = Provider<GetOrderById>((ref) {
+  final repository = ref.watch(orderRepositoryProvider);
+  return GetOrderById(repository);
+});
+
+final createOrderUseCaseProvider = Provider<CreateOrder>((ref) {
   final repository = ref.watch(orderRepositoryProvider);
   return CreateOrder(repository);
 });
 
-final confirmOrderUseCaseProvider = Provider((ref) {
+final confirmOrderUseCaseProvider = Provider<ConfirmOrder>((ref) {
   final repository = ref.watch(orderRepositoryProvider);
   return ConfirmOrder(repository);
+});
+
+final cancelOrderUseCaseProvider = Provider<CancelOrder>((ref) {
+  final repository = ref.watch(orderRepositoryProvider);
+  return CancelOrder(repository);
 });
 
 // ============================================================================

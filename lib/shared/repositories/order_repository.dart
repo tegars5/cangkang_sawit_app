@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../models/models.dart';
 import '../../core/services/supabase_service.dart';
+import '../../core/utils/order_number_generator.dart';
 
 /// Repository untuk mengelola operasi Order dan OrderDetail
 class OrderRepository {
@@ -497,7 +498,7 @@ class OrderRepository {
 
   /// Generate unique order number
   String generateOrderNumber() {
-    return _supabaseService.generateOrderNumber();
+    return OrderNumberGenerator.generateOrderNumber();
   }
 
   /// Get orders by status for specific user

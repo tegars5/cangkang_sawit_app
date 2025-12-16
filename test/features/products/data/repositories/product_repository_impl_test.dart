@@ -160,18 +160,25 @@ void main() {
       verify(mockRemoteDataSource.searchProducts(testQuery));
     });
 
-    test('should return empty list when no products match', () async {
-      // arrange
-      when(
-        mockRemoteDataSource.searchProducts(any),
-      ).thenAnswer((_) async => []);
+    test(
+      'searchProducts should return empty list when no products match',
+      () async {
+        // Arrange
+        when(
+          mockRemoteDataSource.searchProducts('nonexistent'),
+        ).thenAnswer((_) async => []);
 
-      // act
-      final result = await repository.searchProducts(testQuery);
+        // Act
+        final result = await repository.searchProducts('nonexistent');
 
-      // assert
-      expect(result, const Right([]));
-    });
+        // Assert
+        expect(result.isRight(), true);
+        result.fold(
+          (failure) => fail('Should return Right'),
+          (products) => expect(products, isEmpty),
+        );
+      },
+    );
 
     test('should return ServerFailure when search fails', () async {
       // arrange

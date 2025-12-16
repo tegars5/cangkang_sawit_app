@@ -1,22 +1,33 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
+import 'package:state_notifier/state_notifier.dart';
 import '../../../../core/di/injection_container.dart';
 import '../../../../core/usecases/usecase.dart';
+import '../../domain/usecases/get_products.dart';
 import '../../domain/usecases/get_product_by_id.dart';
 import '../../domain/usecases/search_products.dart';
 import 'product_state.dart';
 
 /// StateNotifier for managing product state
 class ProductNotifier extends StateNotifier<ProductState> {
-  final Ref ref;
+  final GetProducts _getProductsUseCase;
+  final GetProductById _getProductByIdUseCase;
+  final SearchProducts _searchProductsUseCase;
 
-  ProductNotifier(this.ref) : super(const ProductState.initial());
+  ProductNotifier({
+    required GetProducts getProductsUseCase,
+    required GetProductById getProductByIdUseCase,
+    required SearchProducts searchProductsUseCase,
+  }) : _getProductsUseCase = getProductsUseCase,
+       _getProductByIdUseCase = getProductByIdUseCase,
+       _searchProductsUseCase = searchProductsUseCase,
+       super(const ProductState.initial());
 
   /// Load all products
   Future<void> loadProducts() async {
     state = state.copyWith(isLoading: true, clearError: true);
 
-    final getProducts = ref.read(getProductsUseCaseProvider);
-    final result = await getProducts(NoParams());
+    final result = await _getProductsUseCase(NoParams());
 
     result.fold(
       (failure) {
@@ -36,8 +47,7 @@ class ProductNotifier extends StateNotifier<ProductState> {
   Future<void> loadProductById(String id) async {
     state = state.copyWith(isLoading: true, clearError: true);
 
-    final getProductById = ref.read(getProductByIdUseCaseProvider);
-    final result = await getProductById(GetProductByIdParams(id: id));
+    final result = await _getProductByIdUseCase(GetProductByIdParams(id: id));
 
     result.fold(
       (failure) {
@@ -67,8 +77,9 @@ class ProductNotifier extends StateNotifier<ProductState> {
       clearError: true,
     );
 
-    final searchProducts = ref.read(searchProductsUseCaseProvider);
-    final result = await searchProducts(SearchProductsParams(query: query));
+    final result = await _searchProductsUseCase(
+      SearchProductsParams(query: query),
+    );
 
     result.fold(
       (failure) {
@@ -109,5 +120,9 @@ class ProductNotifier extends StateNotifier<ProductState> {
 /// Provider for ProductNotifier
 final productNotifierProvider =
     StateNotifierProvider<ProductNotifier, ProductState>((ref) {
-      return ProductNotifier(ref);
+      return ProductNotifier(
+        getProductsUseCase: ref.read(getProductsUseCaseProvider),
+        getProductByIdUseCase: ref.read(getProductByIdUseCaseProvider),
+        searchProductsUseCase: ref.read(searchProductsUseCaseProvider),
+      );
     });

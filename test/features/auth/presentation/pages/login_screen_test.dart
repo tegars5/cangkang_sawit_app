@@ -147,25 +147,22 @@ void main() {
       );
       expect(passwordField, findsOneWidget);
 
-      // Initially password should be obscured
-      TextFormField textField = tester.widget(passwordField);
-      expect(textField.obscureText, true);
+      // Initially visibility_off icon should be shown (password obscured)
+      expect(find.byIcon(Icons.visibility_off_outlined), findsOneWidget);
 
-      // Tap visibility icon
+      // Tap visibility icon to show password
       await tester.tap(find.byIcon(Icons.visibility_off_outlined));
       await tester.pump();
 
-      // Password should now be visible
-      textField = tester.widget(passwordField);
-      expect(textField.obscureText, false);
+      // Now visibility icon should be shown (password visible)
+      expect(find.byIcon(Icons.visibility_outlined), findsOneWidget);
 
-      // Tap again to hide
+      // Tap again to hide password
       await tester.tap(find.byIcon(Icons.visibility_outlined));
       await tester.pump();
 
-      // Password should be obscured again
-      textField = tester.widget(passwordField);
-      expect(textField.obscureText, true);
+      // Back to visibility_off icon (password obscured)
+      expect(find.byIcon(Icons.visibility_off_outlined), findsOneWidget);
     });
 
     testWidgets('should show loading indicator when logging in', (

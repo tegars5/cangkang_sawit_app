@@ -1,27 +1,31 @@
-import 'package:dartz/dartz.dart' as dartz;
+import 'package:dartz/dartz.dart' hide Order;
 import '../../../../core/error/failures.dart';
 import '../../../../core/usecases/usecase.dart';
-import '../../../../shared/models/models.dart';
+import '../entities/order.dart';
 import '../repositories/order_repository.dart';
 
-/// Use case for confirming orders (admin only)
+/// Use case for confirming an order (Admin only)
 class ConfirmOrder implements UseCase<Order, ConfirmOrderParams> {
   final OrderRepository repository;
 
   ConfirmOrder(this.repository);
 
   @override
-  Future<dartz.Either<Failure, Order>> call(ConfirmOrderParams params) async {
-    // Business validation
-    if (params.confirmedItems.isEmpty) {
-      return const dartz.Left(
-        ValidationFailure('Must confirm at least one item'),
+  Future<Either<Failure, Order>> call(ConfirmOrderParams params) async {
+    // Validation
+    if (params.orderId.isEmpty) {
+      return Left(ValidationFailure('Order ID cannot be empty'));
+    }
+
+    if (params.confirmedQuantity <= 0) {
+      return Left(
+        ValidationFailure('Confirmed quantity must be greater than 0'),
       );
     }
 
     return await repository.confirmOrder(
-      orderId: params.orderId,
-      confirmedItems: params.confirmedItems,
+      params.orderId,
+      params.confirmedQuantity,
     );
   }
 }
@@ -29,10 +33,22 @@ class ConfirmOrder implements UseCase<Order, ConfirmOrderParams> {
 /// Parameters for ConfirmOrder use case
 class ConfirmOrderParams {
   final String orderId;
-  final List<Map<String, dynamic>> confirmedItems;
+  final double confirmedQuantity;
 
   const ConfirmOrderParams({
     required this.orderId,
-    required this.confirmedItems,
+    required this.confirmedQuantity,
   });
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is ConfirmOrderParams &&
+        other.orderId == orderId &&
+        other.confirmedQuantity == confirmedQuantity;
+  }
+
+  @override
+  int get hashCode => orderId.hashCode ^ confirmedQuantity.hashCode;
 }
