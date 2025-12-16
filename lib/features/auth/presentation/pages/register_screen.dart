@@ -34,27 +34,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     super.dispose();
   }
 
-  @override
-  void initState() {
-    super.initState();
-    // Listen to auth state changes
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.listen<AuthState>(authNotifierProvider, (previous, next) {
-        if (next.isAuthenticated && next.user != null) {
-          // Navigate to success screen
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const RegistrationSuccessScreen(),
-            ),
-          );
-        } else if (next.errorMessage != null) {
-          _showErrorDialog(next.errorMessage!);
-        }
-      });
-    });
-  }
-
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
@@ -114,6 +93,21 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Listen to auth state changes
+    ref.listen<AuthState>(authNotifierProvider, (previous, next) {
+      if (next.isAuthenticated && next.user != null) {
+        // Navigate to success screen
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const RegistrationSuccessScreen(),
+          ),
+        );
+      } else if (next.errorMessage != null) {
+        _showErrorDialog(next.errorMessage!);
+      }
+    });
+
     final authState = ref.watch(authNotifierProvider);
 
     return Scaffold(

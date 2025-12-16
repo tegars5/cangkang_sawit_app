@@ -29,22 +29,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
-  @override
-  void initState() {
-    super.initState();
-    // Listen to auth state changes
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.listen<AuthState>(authNotifierProvider, (previous, next) {
-        // Handle authentication state changes
-        if (next.isAuthenticated && next.user != null) {
-          _navigateBasedOnRole(next.user!.roleId);
-        } else if (next.errorMessage != null) {
-          _showErrorDialog(next.errorMessage!);
-        }
-      });
-    });
-  }
-
   void _navigateBasedOnRole(int? roleId) {
     Widget nextScreen;
 
@@ -105,6 +89,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Listen to auth state changes
+    ref.listen<AuthState>(authNotifierProvider, (previous, next) {
+      // Handle authentication state changes
+      if (next.isAuthenticated && next.user != null) {
+        _navigateBasedOnRole(next.user!.roleId);
+      } else if (next.errorMessage != null) {
+        _showErrorDialog(next.errorMessage!);
+      }
+    });
+
     final authState = ref.watch(authNotifierProvider);
 
     return Scaffold(

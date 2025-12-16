@@ -8,6 +8,9 @@ import '../../features/auth/presentation/pages/login_screen.dart';
 import '../../features/auth/presentation/pages/register_screen.dart';
 import '../../features/auth/presentation/pages/forgot_password_screen.dart';
 import '../../features/products/presentation/pages/product_catalog_screen.dart';
+import '../../features/orders/presentation/pages/order_list_page.dart';
+import '../../features/orders/presentation/pages/order_detail_page.dart';
+import '../../features/orders/presentation/pages/create_order_page.dart';
 
 /// App routes configuration using go_router
 /// Includes authentication guards and role-based navigation
@@ -128,17 +131,24 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRouter.mitraOrders,
-        builder: (context, state) => const Scaffold(
-          body: Center(child: Text('Mitra Orders - Coming Soon')),
-        ),
+        builder: (context, state) => const OrderListPage(),
+      ),
+      GoRoute(
+        path: '/orders/create',
+        builder: (context, state) => const CreateOrderPage(),
+      ),
+      GoRoute(
+        path: '/orders/detail',
+        builder: (context, state) {
+          final orderId = state.uri.queryParameters['id'] ?? '';
+          return OrderDetailPage(orderId: orderId);
+        },
       ),
       GoRoute(
         path: AppRouter.orderDetail,
         builder: (context, state) {
           final orderId = state.pathParameters['id']!;
-          return Scaffold(
-            body: Center(child: Text('Order Detail: $orderId - Coming Soon')),
-          );
+          return OrderDetailPage(orderId: orderId);
         },
       ),
 
@@ -161,9 +171,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRouter.adminOrders,
-        builder: (context, state) => const Scaffold(
-          body: Center(child: Text('Admin Orders - Coming Soon')),
-        ),
+        builder: (context, state) => const OrderListPage(),
       ),
 
       // Driver routes

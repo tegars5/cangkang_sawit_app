@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../providers/product_notifier.dart';
+import '../providers/product_state.dart';
 import '../../domain/entities/product.dart';
 import '../../../../core/utils/number_formatter.dart';
 

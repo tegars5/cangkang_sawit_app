@@ -70,7 +70,7 @@ class SupabaseService {
           fileBytes,
           fileOptions: mimeType != null
               ? FileOptions(contentType: mimeType)
-              : null,
+              : const FileOptions(),
         );
     return storage.from(bucketName).getPublicUrl(fileName);
   }

@@ -157,6 +157,13 @@ final cancelOrderUseCaseProvider = Provider<CancelOrder>((ref) {
 });
 
 // ============================================================================
+// PHASE 4+ FEATURES - TO BE IMPLEMENTED
+// ============================================================================
+// The following providers are commented out until their respective features
+// are implemented. Uncomment when ready to use.
+
+/*
+// ============================================================================
 // TRACKING FEATURE
 // ============================================================================
 
@@ -285,9 +292,8 @@ final getOrderHistoryUseCaseProvider = Provider((ref) {
   final repository = ref.watch(mitraRepositoryProvider);
   return GetOrderHistory(repository);
 });
+*/
 
 // ============================================================================
-// NOTE: Import statements need to be added at the top of this file
-// once the actual classes are created. This file serves as a template
-// for the dependency injection structure.
+// NOTE: Uncomment the above providers when implementing Phase 5+ features
 // ============================================================================
