@@ -1,5 +1,4 @@
 import 'dart:developer';
-import '../repositories/shipment_repository.dart';
 import '../services/photo_upload_service.dart';
 
 class AppInitializationService {
@@ -37,10 +36,6 @@ class AppInitializationService {
       // Initialize photo upload service bucket
       await PhotoUploadService.initializeBucket();
       log('Photo upload service initialized');
-
-      // Initialize shipment repository
-      ShipmentRepository.initialize();
-      log('Shipment repository initialized');
     } catch (e, stackTrace) {
       log(
         'Error initializing Supabase services: $e',
@@ -82,9 +77,6 @@ class AppInitializationService {
   static void dispose() {
     try {
       if (!_isInitialized) return;
-
-      // Dispose repositories
-      ShipmentRepository.dispose();
 
       _isInitialized = false;
       log('App services disposed');

@@ -13,10 +13,11 @@ class SafeDashboardWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, dynamic result) {
         // Prevent back button from causing Navigator errors
-        return false;
+        // Already handled by canPop: false
       },
       child: child,
     );

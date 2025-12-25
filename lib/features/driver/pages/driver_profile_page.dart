@@ -54,7 +54,7 @@ class _DriverProfilePageState extends ConsumerState<DriverProfilePage> {
                 children: [
                   CircleAvatar(
                     radius: 50.r,
-                    backgroundColor: const Color(0xFF1B5E20).withOpacity(0.1),
+                    backgroundColor: const Color(0xFF1B5E20).withValues(alpha: 0.1),
                     child: Text(
                       'AS',
                       style: TextStyle(
@@ -84,7 +84,7 @@ class _DriverProfilePageState extends ConsumerState<DriverProfilePage> {
                       vertical: 6.h,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
+                      color: Colors.green.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(16.r),
                     ),
                     child: Row(
@@ -388,7 +388,7 @@ class _DriverProfilePageState extends ConsumerState<DriverProfilePage> {
         borderRadius: BorderRadius.circular(12.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -401,7 +401,7 @@ class _DriverProfilePageState extends ConsumerState<DriverProfilePage> {
             width: 40.w,
             height: 40.h,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8.r),
             ),
             child: Icon(icon, color: color, size: 20.sp),
@@ -437,7 +437,7 @@ class _DriverProfilePageState extends ConsumerState<DriverProfilePage> {
         borderRadius: BorderRadius.circular(12.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -449,7 +449,7 @@ class _DriverProfilePageState extends ConsumerState<DriverProfilePage> {
           width: 40.w,
           height: 40.h,
           decoration: BoxDecoration(
-            color: const Color(0xFF1B5E20).withOpacity(0.1),
+            color: const Color(0xFF1B5E20).withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8.r),
           ),
           child: Icon(icon, color: const Color(0xFF1B5E20), size: 20.sp),
@@ -486,7 +486,7 @@ class _DriverProfilePageState extends ConsumerState<DriverProfilePage> {
         borderRadius: BorderRadius.circular(12.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -498,7 +498,7 @@ class _DriverProfilePageState extends ConsumerState<DriverProfilePage> {
           width: 40.w,
           height: 40.h,
           decoration: BoxDecoration(
-            color: const Color(0xFF1B5E20).withOpacity(0.1),
+            color: const Color(0xFF1B5E20).withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8.r),
           ),
           child: Icon(icon, color: const Color(0xFF1B5E20), size: 20.sp),

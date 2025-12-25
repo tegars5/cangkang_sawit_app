@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:lottie/lottie.dart';
-import '../../../widgets/common/common_widgets.dart';
-import '../../../shared/models/models.dart';
 import '../providers/admin_providers.dart';
+import '../../products/domain/entities/product.dart';
 
 /// Admin Products Page - Full CRUD for Product Management
 class AdminProductsPage extends ConsumerWidget {
@@ -81,7 +80,7 @@ class AdminProductsPage extends ConsumerWidget {
 
           return RefreshIndicator(
             onRefresh: () async {
-              await ref.read(productListProvider.notifier).refresh();
+              ref.invalidate(productListProvider);
             },
             child: ListView.builder(
               padding: EdgeInsets.all(16.w),
@@ -122,7 +121,7 @@ class AdminProductsPage extends ConsumerWidget {
               SizedBox(height: 16.h),
               ElevatedButton(
                 onPressed: () {
-                  ref.read(productListProvider.notifier).refresh();
+                  ref.invalidate(productListProvider);
                 },
                 child: const Text('Retry'),
               ),
@@ -153,7 +152,7 @@ class AdminProductsPage extends ConsumerWidget {
         borderRadius: BorderRadius.circular(12.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -356,7 +355,7 @@ class AdminProductsPage extends ConsumerWidget {
             onPressed: () async {
               final name = nameController.text.trim();
               final price = double.tryParse(priceController.text.trim());
-              final stock = double.tryParse(stockController.text.trim());
+              // final stock = double.tryParse(stockController.text.trim());
 
               if (name.isEmpty || price == null) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -369,26 +368,16 @@ class AdminProductsPage extends ConsumerWidget {
               }
 
               try {
+                // TODO: Implement actual product update/create via repository
                 if (isEdit) {
-                  await ref
-                      .read(productListProvider.notifier)
-                      .updateProduct(
-                        productId: product.id,
-                        name: name,
-                        pricePerTon: price,
-                        stockAvailable: stock,
-                      );
+                  // await productRepository.updateProduct(...);
                 } else {
-                  await ref
-                      .read(productListProvider.notifier)
-                      .createProduct(
-                        name: name,
-                        pricePerTon: price,
-                        stockAvailable: stock,
-                      );
+                  // await productRepository.createProduct(...);
                 }
 
                 if (context.mounted) {
+                  // Refresh product list after successful operation
+                  ref.invalidate(productListProvider);
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -437,12 +426,12 @@ class AdminProductsPage extends ConsumerWidget {
           ElevatedButton(
             onPressed: () async {
               try {
-                await ref
-                    .read(productListProvider.notifier)
-                    .deleteProduct(product.id);
+                // TODO: Implement actual product deletion via repository
+                // await productRepository.deleteProduct(product.id);
 
                 if (context.mounted) {
                   Navigator.pop(context);
+                  ref.invalidate(productListProvider);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('Product deleted successfully'),

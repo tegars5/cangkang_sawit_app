@@ -253,9 +253,9 @@ class _DriverDeliveriesPageState extends ConsumerState<DriverDeliveriesPage> {
     return Container(
       padding: EdgeInsets.all(12.w),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [
@@ -279,7 +279,7 @@ class _DriverDeliveriesPageState extends ConsumerState<DriverDeliveriesPage> {
           ),
           Text(
             subtitle,
-            style: TextStyle(fontSize: 9.sp, color: color.withOpacity(0.8)),
+            style: TextStyle(fontSize: 9.sp, color: color.withValues(alpha: 0.8)),
           ),
         ],
       ),
@@ -298,7 +298,7 @@ class _DriverDeliveriesPageState extends ConsumerState<DriverDeliveriesPage> {
           borderRadius: BorderRadius.circular(12.r),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
@@ -327,7 +327,7 @@ class _DriverDeliveriesPageState extends ConsumerState<DriverDeliveriesPage> {
                       vertical: 4.h,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
+                      color: Colors.green.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12.r),
                     ),
                     child: Text(
@@ -711,13 +711,13 @@ class _DriverDeliveriesPageState extends ConsumerState<DriverDeliveriesPage> {
         padding: EdgeInsets.all(16.w),
         decoration: BoxDecoration(
           color: hasProof
-              ? Colors.green.withOpacity(0.1)
-              : Colors.red.withOpacity(0.1),
+              ? Colors.green.withValues(alpha: 0.1)
+              : Colors.red.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(12.r),
           border: Border.all(
             color: hasProof
-                ? Colors.green.withOpacity(0.3)
-                : Colors.red.withOpacity(0.3),
+                ? Colors.green.withValues(alpha: 0.3)
+                : Colors.red.withValues(alpha: 0.3),
           ),
         ),
         child: Column(

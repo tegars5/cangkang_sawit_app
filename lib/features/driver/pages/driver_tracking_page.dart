@@ -5,7 +5,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../shared/models/shipment.dart';
+import '../../shipments/domain/entities/shipment.dart';
 import '../controllers/driver_tracking_controller.dart';
 import '../services/driver_background_tracking_service.dart';
 
@@ -71,12 +71,13 @@ class _DriverTrackingPageState extends ConsumerState<DriverTrackingPage> {
     final driverId = currentUser.id;
 
     // Start foreground tracking
-    await controller.startTracking(driverId);
+    controller.startTracking(driverId);
 
     // Start background tracking (HIGH PRIORITY)
-    await _backgroundService.startBackgroundTracking(
-      driverId: driverId,
-      shipmentId: widget.shipment.id,
+    await _backgroundService.startTracking(
+      onLocationUpdate: (lat, lng) {
+        // Handle location updates if needed
+      },
     );
 
     // Setup periodic location save (every 30 seconds)
@@ -130,7 +131,7 @@ class _DriverTrackingPageState extends ConsumerState<DriverTrackingPage> {
       controller.stopTracking();
 
       // Stop background tracking
-      await _backgroundService.stopBackgroundTracking();
+      _backgroundService.stopTracking();
 
       _locationSaveTimer?.cancel();
       _mapUpdateTimer?.cancel();
@@ -163,7 +164,7 @@ class _DriverTrackingPageState extends ConsumerState<DriverTrackingPage> {
         ),
         infoWindow: InfoWindow(
           title: 'Posisi Anda',
-          snippet: state.currentLocation!.formattedSpeed,
+          snippet: state.currentLocation!.getFormattedSpeed(),
         ),
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
         rotation: state.currentLocation!.heading ?? 0,
@@ -294,7 +295,7 @@ class _DriverTrackingPageState extends ConsumerState<DriverTrackingPage> {
                 color: const Color(0xFF1B5E20),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   ),
@@ -322,7 +323,8 @@ class _DriverTrackingPageState extends ConsumerState<DriverTrackingPage> {
                           ),
                         ),
                         Text(
-                          widget.shipment.deliveryNoteNumber,
+                          widget.shipment.deliveryNoteNumber ??
+                              widget.shipment.id,
                           style: TextStyle(
                             color: Colors.white70,
                             fontSize: 12.sp,
@@ -336,8 +338,8 @@ class _DriverTrackingPageState extends ConsumerState<DriverTrackingPage> {
                     padding: EdgeInsets.all(8.w),
                     decoration: BoxDecoration(
                       color: state.isTracking
-                          ? Colors.green.withOpacity(0.2)
-                          : Colors.red.withOpacity(0.2),
+                          ? Colors.green.withValues(alpha: 0.2)
+                          : Colors.red.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(8.r),
                     ),
                     child: Icon(
@@ -412,7 +414,7 @@ class _DriverTrackingPageState extends ConsumerState<DriverTrackingPage> {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: 12,
                     offset: const Offset(0, -4),
                   ),
@@ -444,7 +446,8 @@ class _DriverTrackingPageState extends ConsumerState<DriverTrackingPage> {
                                 icon: Icons.speed,
                                 label: 'Kecepatan',
                                 value:
-                                    state.currentLocation?.formattedSpeed ??
+                                    state.currentLocation
+                                        ?.getFormattedSpeed() ??
                                     '-',
                                 color: Colors.blue,
                               ),
@@ -500,7 +503,8 @@ class _DriverTrackingPageState extends ConsumerState<DriverTrackingPage> {
                                     ),
                                     SizedBox(height: 4.h),
                                     Text(
-                                      widget.shipment.destinationAddress,
+                                      widget.shipment.destinationAddress ??
+                                          'Alamat tidak tersedia',
                                       style: TextStyle(
                                         fontSize: 14.sp,
                                         fontWeight: FontWeight.w600,
@@ -587,7 +591,7 @@ class _DriverTrackingPageState extends ConsumerState<DriverTrackingPage> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -610,9 +614,9 @@ class _DriverTrackingPageState extends ConsumerState<DriverTrackingPage> {
     return Container(
       padding: EdgeInsets.all(12.w),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [

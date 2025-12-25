@@ -31,7 +31,7 @@ class CustomSearchBar extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12.r),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -82,7 +82,7 @@ class CustomSearchBar extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12.r),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
+                      color: Colors.black.withValues(alpha: 0.1),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -284,7 +284,7 @@ class UploadField extends StatelessWidget {
                         vertical: 8.h,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1B5E20).withOpacity(0.1),
+                        color: const Color(0xFF1B5E20).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(6.r),
                       ),
                       child: Row(
@@ -346,7 +346,7 @@ class RadioOption<T> extends StatelessWidget {
         padding: EdgeInsets.all(16.w),
         decoration: BoxDecoration(
           color: isSelected
-              ? const Color(0xFF1B5E20).withOpacity(0.1)
+              ? const Color(0xFF1B5E20).withValues(alpha: 0.1)
               : Colors.white,
           border: Border.all(
             color: isSelected
@@ -358,9 +358,12 @@ class RadioOption<T> extends StatelessWidget {
         ),
         child: Row(
           children: [
+            // ignore: deprecated_member_use
             Radio<T>(
               value: value,
+              // ignore: deprecated_member_use
               groupValue: groupValue,
+              // ignore: deprecated_member_use
               onChanged: onChanged,
               activeColor: const Color(0xFF1B5E20),
             ),

@@ -1,7 +1,7 @@
 import 'package:dartz/dartz.dart' as dartz;
 import '../../../../core/error/failures.dart';
 import '../../../../core/usecases/usecase.dart';
-import '../../../../shared/models/models.dart';
+import '../../../shipments/domain/entities/shipment.dart';
 import '../repositories/driver_repository.dart';
 
 /// Use case for getting driver tasks

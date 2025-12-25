@@ -63,7 +63,7 @@ class _DashboardHeader extends StatelessWidget {
           borderRadius: BorderRadius.circular(16.r),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF1B5E20).withOpacity(0.3),
+              color: const Color(0xFF1B5E20).withValues(alpha: 0.3),
               blurRadius: 15,
               offset: const Offset(0, 8),
             ),
@@ -81,7 +81,7 @@ class _DashboardHeader extends StatelessWidget {
                       Text(
                         'Dashboard Admin',
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.9),
+                          color: Colors.white.withValues(alpha: 0.9),
                           fontSize: 12.sp,
                           fontWeight: FontWeight.w500,
                         ),
@@ -103,7 +103,7 @@ class _DashboardHeader extends StatelessWidget {
                 Container(
                   padding: EdgeInsets.all(10.w),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(10.r),
                   ),
                   child: Icon(
@@ -186,35 +186,35 @@ class _StatsSection extends ConsumerWidget {
           delegate: SliverChildListDelegate([
             AdminStatCard(
               title: 'Total Pesanan',
-              value: stats.totalOrders.toString(),
+              value: stats?.totalOrders.toString() ?? '0',
               subtitle: 'Bulan ini',
               icon: Icons.shopping_cart,
               color: const Color(0xFF2196F3),
-              trend: stats.ordersTrend,
+              trend: stats?.ordersTrend ?? 0.0,
             ),
             AdminStatCard(
               title: 'Pengiriman',
-              value: stats.activeShipments.toString(),
+              value: stats?.activeShipments.toString() ?? '0',
               subtitle: 'Aktif',
               icon: Icons.local_shipping,
               color: const Color(0xFFFF9800),
-              trend: stats.shipmentsTrend,
+              trend: stats?.shipmentsTrend ?? 0.0,
             ),
             AdminStatCard(
               title: 'Mitra Aktif',
-              value: stats.activePartners.toString(),
+              value: stats?.activePartners.toString() ?? '0',
               subtitle: 'Total',
               icon: Icons.people,
               color: const Color(0xFF9C27B0),
-              trend: stats.partnersTrend,
+              trend: stats?.partnersTrend ?? 0.0,
             ),
             AdminStatCard(
               title: 'Pendapatan',
-              value: currencyFormat.format(stats.monthlyRevenue),
+              value: currencyFormat.format(stats?.monthlyRevenue ?? 0),
               subtitle: 'Bulan ini',
               icon: Icons.account_balance_wallet,
               color: const Color(0xFF4CAF50),
-              trend: stats.revenueTrend,
+              trend: stats?.revenueTrend ?? 0.0,
               compactValue: true,
             ),
           ]),
@@ -267,7 +267,7 @@ class _QuickActionsSection extends ConsumerWidget {
                       label: 'Pesanan',
                       color: const Color(0xFF2196F3),
                       onTap: () =>
-                          ref.read(adminTabIndexProvider.notifier).setIndex(1),
+                          ref.read(adminTabIndexProvider.notifier).state = 1,
                     ),
                     SizedBox(width: 8.w),
                     _buildQuickAction(
@@ -275,7 +275,7 @@ class _QuickActionsSection extends ConsumerWidget {
                       label: 'Produk',
                       color: const Color(0xFF4CAF50),
                       onTap: () =>
-                          ref.read(adminTabIndexProvider.notifier).setIndex(3),
+                          ref.read(adminTabIndexProvider.notifier).state = 3,
                     ),
                     SizedBox(width: 8.w),
                     _buildQuickAction(
@@ -283,7 +283,7 @@ class _QuickActionsSection extends ConsumerWidget {
                       label: 'Tracking',
                       color: const Color(0xFFFF9800),
                       onTap: () =>
-                          ref.read(adminTabIndexProvider.notifier).setIndex(2),
+                          ref.read(adminTabIndexProvider.notifier).state = 2,
                     ),
                     SizedBox(width: 8.w),
                     _buildQuickAction(
@@ -324,7 +324,7 @@ class _QuickActionsSection extends ConsumerWidget {
             borderRadius: BorderRadius.circular(16.r),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -336,7 +336,7 @@ class _QuickActionsSection extends ConsumerWidget {
               Container(
                 padding: EdgeInsets.all(10.w),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(icon, color: color, size: 22.sp),
@@ -395,16 +395,18 @@ class _WeeklyChartSection extends ConsumerWidget {
 
 /// Weekly Chart Card Widget
 class _WeeklyChartCard extends StatelessWidget {
-  final WeeklyOrderData data;
+  final List<WeeklyOrderData> data;
 
   const _WeeklyChartCard({required this.data});
 
   @override
   Widget build(BuildContext context) {
-    final maxValue = data.values.isEmpty
+    final values = data.map((e) => e.orders).toList();
+    final labels = data.map((e) => e.day).toList();
+    final maxValue = values.isEmpty
         ? 1.0
-        : data.values.reduce((a, b) => a > b ? a : b).toDouble();
-    final total = data.values.fold(0, (sum, value) => sum + value);
+        : values.reduce((a, b) => a > b ? a : b).toDouble();
+    final total = values.fold(0, (sum, value) => sum + value);
 
     return AdminCardContainer(
       padding: EdgeInsets.all(16.w),
@@ -427,7 +429,7 @@ class _WeeklyChartCard extends StatelessWidget {
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1B5E20).withOpacity(0.1),
+                  color: const Color(0xFF1B5E20).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8.r),
                 ),
                 child: Text(
@@ -446,8 +448,8 @@ class _WeeklyChartCard extends StatelessWidget {
             height: 120.h,
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
-              children: List.generate(data.values.length, (index) {
-                final value = data.values[index];
+              children: List.generate(values.length, (index) {
+                final value = values[index];
                 final height = maxValue > 0 ? (value / maxValue) * 70.h : 0.0;
                 return Expanded(
                   child: Padding(
@@ -481,7 +483,7 @@ class _WeeklyChartCard extends StatelessWidget {
                         ),
                         SizedBox(height: 6.h),
                         Text(
-                          data.labels[index],
+                          labels[index],
                           style: TextStyle(
                             fontSize: 9.sp,
                             color: const Color(0xFF757575),
@@ -517,7 +519,7 @@ class _RecentOrdersSection extends ConsumerWidget {
               title: 'Pesanan Terbaru',
               actionText: 'Lihat Semua',
               onActionTap: () =>
-                  ref.read(adminTabIndexProvider.notifier).setIndex(1),
+                  ref.read(adminTabIndexProvider.notifier).state = 1,
               padding: EdgeInsets.zero,
             ),
             SizedBox(height: 12.h),
@@ -579,7 +581,7 @@ class _RecentOrdersList extends StatelessWidget {
                   width: 36.w,
                   height: 36.w,
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
+                    color: statusColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8.r),
                   ),
                   child: Icon(
@@ -763,7 +765,7 @@ class _ActivityTimeline extends StatelessWidget {
                       width: 32.w,
                       height: 32.w,
                       decoration: BoxDecoration(
-                        color: color.withOpacity(0.1),
+                        color: color.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(

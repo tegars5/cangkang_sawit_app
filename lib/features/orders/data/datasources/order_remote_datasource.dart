@@ -63,7 +63,7 @@ class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
           .eq('id', id)
           .single();
 
-      return OrderModel.fromJson(response as Map<String, dynamic>);
+      return OrderModel.fromJson(response);
     } on PostgrestException catch (e) {
       if (e.code == 'PGRST116') {
         throw NotFoundException('Order not found');
@@ -83,7 +83,7 @@ class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
           .select()
           .single();
 
-      return OrderModel.fromJson(orderResponse as Map<String, dynamic>);
+      return OrderModel.fromJson(orderResponse);
     } on PostgrestException catch (e) {
       throw ServerException('Failed to create order: ${e.message}');
     } catch (e) {

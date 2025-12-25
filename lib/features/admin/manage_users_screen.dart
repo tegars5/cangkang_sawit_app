@@ -180,7 +180,7 @@ class _ManageUsersScreenState extends ConsumerState<ManageUsersScreen> {
         });
       },
       backgroundColor: Colors.white,
-      selectedColor: const Color(0xFF2E7D32).withOpacity(0.2),
+      selectedColor: const Color(0xFF2E7D32).withValues(alpha: 0.2),
       checkmarkColor: const Color(0xFF2E7D32),
       labelStyle: TextStyle(
         color: isSelected ? const Color(0xFF2E7D32) : Colors.grey[700],
@@ -205,7 +205,7 @@ class _ManageUsersScreenState extends ConsumerState<ManageUsersScreen> {
               children: [
                 CircleAvatar(
                   radius: 28.r,
-                  backgroundColor: roleColor.withOpacity(0.2),
+                  backgroundColor: roleColor.withValues(alpha: 0.2),
                   child: Icon(
                     _getRoleIcon(roleName),
                     color: roleColor,
@@ -234,7 +234,7 @@ class _ManageUsersScreenState extends ConsumerState<ManageUsersScreen> {
                               vertical: 4.h,
                             ),
                             decoration: BoxDecoration(
-                              color: roleColor.withOpacity(0.1),
+                              color: roleColor.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(8.r),
                             ),
                             child: Text(

@@ -1,283 +1,83 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:intl/intl.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-// Pastikan import ini sesuai dengan struktur project Kakak
-import '../../../shared/models/models.dart';
-import '../../../shared/repositories/order_repository.dart';
-import '../../../widgets/common/status_badge.dart'; // Widget yang baru kita buat
-import '../widgets/confirm_order_dialog.dart';
-import 'order_detail_page.dart';
-
-class AdminOrdersPage extends StatefulWidget {
+/// Admin Orders Page
+///
+/// Displays and manages all orders in the system
+class AdminOrdersPage extends ConsumerWidget {
   const AdminOrdersPage({super.key});
 
   @override
-  State<AdminOrdersPage> createState() => _AdminOrdersPageState();
-}
-
-class _AdminOrdersPageState extends State<AdminOrdersPage> {
-  final OrderRepository _orderRepository = OrderRepository();
-  List<Order> _orders = [];
-  bool _isLoading = true;
-  String? _errorMessage;
-
-  // Filter status
-  String _selectedStatus = 'All';
-  final List<String> _statusOptions = [
-    'All',
-    'Pending',
-    'Confirmed',
-    'Shipped',
-    'Completed',
-    'Cancelled',
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchOrders();
-  }
-
-  Future<void> _fetchOrders() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    try {
-      // Ambil data langsung dari Repository (bukan Service lama)
-      final orders = await _orderRepository.getOrders();
-
-      if (mounted) {
-        setState(() {
-          _orders = orders;
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = 'Gagal memuat pesanan: $e';
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  List<Order> get _filteredOrders {
-    if (_selectedStatus == 'All') return _orders;
-    return _orders
-        .where((o) => o.status.toLowerCase() == _selectedStatus.toLowerCase())
-        .toList();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final currencyFormat = NumberFormat.currency(
-      locale: 'id_ID',
-      symbol: 'Rp ',
-      decimalDigits: 0,
-    );
-
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Kelola Pesanan'),
-        backgroundColor: const Color(0xFF2E7D32),
-        foregroundColor: Colors.white,
-      ),
-      body: Column(
-        children: [
-          // --- Filter Chips ---
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
-            child: Row(
-              children: _statusOptions.map((status) {
-                final isSelected = _selectedStatus == status;
-                return Padding(
-                  padding: EdgeInsets.only(right: 8.w),
-                  child: ChoiceChip(
-                    label: Text(status),
-                    selected: isSelected,
-                    selectedColor: const Color(0xFF2E7D32).withOpacity(0.2),
-                    labelStyle: TextStyle(
-                      color: isSelected
-                          ? const Color(0xFF2E7D32)
-                          : Colors.black87,
-                      fontWeight: isSelected
-                          ? FontWeight.bold
-                          : FontWeight.normal,
-                    ),
-                    onSelected: (bool selected) {
-                      if (selected) {
-                        setState(() {
-                          _selectedStatus = status;
-                        });
-                      }
-                    },
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-
-          // --- List Orders ---
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _errorMessage != null
-                ? Center(child: Text(_errorMessage!))
-                : _filteredOrders.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.inbox_outlined,
-                          size: 48.sp,
-                          color: Colors.grey,
-                        ),
-                        SizedBox(height: 8.h),
-                        Text('Tidak ada pesanan $_selectedStatus'),
-                      ],
-                    ),
-                  )
-                : ListView.separated(
-                    padding: EdgeInsets.all(16.w),
-                    itemCount: _filteredOrders.length,
-                    separatorBuilder: (_, __) => SizedBox(height: 12.h),
-                    itemBuilder: (context, index) {
-                      final order = _filteredOrders[index];
-                      return Card(
-                        elevation: 2,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12.r),
-                        ),
-                        child: InkWell(
-                          onTap: () async {
-                            // Navigasi ke Detail (Tunggu hasil jika ada update)
-                            await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    OrderDetailPage(order: order),
-                              ),
-                            );
-                            // Refresh list setelah kembali (siapa tau status berubah)
-                            _fetchOrders();
-                          },
-                          borderRadius: BorderRadius.circular(12.r),
-                          child: Padding(
-                            padding: EdgeInsets.all(16.w),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      order.orderNumber,
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16.sp,
-                                      ),
-                                    ),
-                                    // Menggunakan Widget StatusBadge yang baru dibuat
-                                    StatusBadge(status: order.status),
-                                  ],
-                                ),
-                                SizedBox(height: 8.h),
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.calendar_today,
-                                      size: 14.sp,
-                                      color: Colors.grey,
-                                    ),
-                                    SizedBox(width: 4.w),
-                                    Text(
-                                      DateFormat(
-                                        'dd MMM yyyy, HH:mm',
-                                      ).format(order.orderDate),
-                                      style: TextStyle(
-                                        color: Colors.grey[600],
-                                        fontSize: 12.sp,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Divider(height: 24.h),
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      '${order.totalQuantity} Ton',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w500,
-                                        fontSize: 14.sp,
-                                      ),
-                                    ),
-                                    Text(
-                                      currencyFormat.format(order.totalAmount),
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16.sp,
-                                        color: const Color(0xFF2E7D32),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                // Add Confirm Button for Pending Orders
-                                if (order.status.toLowerCase() ==
-                                    'pending') ...[
-                                  SizedBox(height: 12.h),
-                                  SizedBox(
-                                    width: double.infinity,
-                                    child: ElevatedButton.icon(
-                                      onPressed: () async {
-                                        final result = await showDialog<bool>(
-                                          context: context,
-                                          builder: (context) =>
-                                              ConfirmOrderDialog(
-                                                order: order,
-                                                orderRepository:
-                                                    _orderRepository,
-                                              ),
-                                        );
-
-                                        // Refresh list if order was confirmed
-                                        if (result == true) {
-                                          _fetchOrders();
-                                        }
-                                      },
-                                      icon: const Icon(
-                                        Icons.check_circle_outline,
-                                      ),
-                                      label: const Text('Konfirmasi Pesanan'),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(
-                                          0xFF2E7D32,
-                                        ),
-                                        foregroundColor: Colors.white,
-                                        padding: EdgeInsets.symmetric(
-                                          vertical: 12.h,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+        title: const Text('Manage Orders'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.filter_list),
+            onPressed: () {
+              _showFilterDialog(context);
+            },
           ),
         ],
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.shopping_cart, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text(
+              'Order Management',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Order management features coming soon',
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showFilterDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Filter Orders'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: const Text('All Orders'),
+              onTap: () => Navigator.pop(context),
+            ),
+            ListTile(
+              title: const Text('Pending'),
+              onTap: () => Navigator.pop(context),
+            ),
+            ListTile(
+              title: const Text('Confirmed'),
+              onTap: () => Navigator.pop(context),
+            ),
+            ListTile(
+              title: const Text('Shipped'),
+              onTap: () => Navigator.pop(context),
+            ),
+            ListTile(
+              title: const Text('Completed'),
+              onTap: () => Navigator.pop(context),
+            ),
+            ListTile(
+              title: const Text('Cancelled'),
+              onTap: () => Navigator.pop(context),
+            ),
+          ],
+        ),
       ),
     );
   }

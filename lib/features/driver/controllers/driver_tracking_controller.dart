@@ -1,205 +1,177 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
+import 'package:state_notifier/state_notifier.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:geolocator/geolocator.dart';
-import '../../../shared/models/driver_location.dart';
-import '../../../shared/models/shipment.dart';
-import '../../../core/services/gps_service.dart';
-import '../../../shared/repositories/location_repository.dart';
+import 'dart:math';
+import '../models/driver_tracking_state.dart';
+import '../../shipments/domain/entities/shipment.dart';
+import '../../tracking/domain/entities/driver_location.dart';
 
-/// State untuk Driver Tracking
-class DriverTrackingState {
-  final bool isTracking;
-  final DriverLocation? currentLocation;
-  final Shipment? activeShipment;
-  final double? distanceToDestination; // dalam meter
-  final String? estimatedArrival; // format: "14:30"
-  final String? errorMessage;
-  final bool isLoading;
-
-  const DriverTrackingState({
-    this.isTracking = false,
-    this.currentLocation,
-    this.activeShipment,
-    this.distanceToDestination,
-    this.estimatedArrival,
-    this.errorMessage,
-    this.isLoading = false,
-  });
-
-  DriverTrackingState copyWith({
-    bool? isTracking,
-    DriverLocation? currentLocation,
-    Shipment? activeShipment,
-    double? distanceToDestination,
-    String? estimatedArrival,
-    String? errorMessage,
-    bool? isLoading,
-  }) {
-    return DriverTrackingState(
-      isTracking: isTracking ?? this.isTracking,
-      currentLocation: currentLocation ?? this.currentLocation,
-      activeShipment: activeShipment ?? this.activeShipment,
-      distanceToDestination:
-          distanceToDestination ?? this.distanceToDestination,
-      estimatedArrival: estimatedArrival ?? this.estimatedArrival,
-      errorMessage: errorMessage ?? this.errorMessage,
-      isLoading: isLoading ?? this.isLoading,
+/// Driver Tracking Controller Provider
+final driverTrackingControllerProvider =
+    StateNotifierProvider<DriverTrackingController, DriverTrackingState>(
+      (ref) => DriverTrackingController(),
     );
-  }
-}
 
-/// Controller untuk Driver Tracking
-class DriverTrackingController extends Notifier<DriverTrackingState> {
-  final GpsService _gpsService = GpsService();
-  final LocationRepository _locationRepository = LocationRepository();
+/// Controller for driver real-time tracking
+class DriverTrackingController extends StateNotifier<DriverTrackingState> {
+  final SupabaseClient _supabase = Supabase.instance.client;
 
-  @override
-  DriverTrackingState build() => const DriverTrackingState();
+  DriverTrackingController() : super(const DriverTrackingState());
 
   /// Set active shipment
   void setActiveShipment(Shipment shipment) {
-    state = state.copyWith(activeShipment: shipment);
-    _calculateDistanceAndETA();
-  }
-
-  /// Update current location
-  void updateLocation(Position position, String driverId) {
-    final location = DriverLocation(
-      id: 'temp-${DateTime.now().millisecondsSinceEpoch}',
-      driverId: driverId,
-      shipmentId: state.activeShipment?.id,
-      latitude: position.latitude,
-      longitude: position.longitude,
-      accuracy: position.accuracy,
-      altitude: position.altitude,
-      speed: position.speed,
-      heading: position.heading,
-      timestamp: DateTime.now(),
-      createdAt: DateTime.now(),
+    state = state.copyWith(
+      activeShipmentId: shipment.id,
+      destinationLat: shipment.deliveryLatitude,
+      destinationLng: shipment.deliveryLongitude,
     );
-
-    state = state.copyWith(currentLocation: location);
-    _calculateDistanceAndETA();
   }
 
-  /// Calculate distance and ETA to destination
-  void _calculateDistanceAndETA() {
-    if (state.currentLocation == null || state.activeShipment == null) {
-      return;
-    }
-
-    final shipment = state.activeShipment!;
-
-    // Check if destination coordinates exist
-    if (shipment.destinationLat == null || shipment.destinationLng == null) {
-      return;
-    }
-
-    // Calculate distance using Geolocator
-    final distance = _gpsService.calculateDistance(
-      state.currentLocation!.latitude,
-      state.currentLocation!.longitude,
-      shipment.destinationLat!,
-      shipment.destinationLng!,
+  /// Start tracking for a shipment
+  void startTracking(String shipmentId) {
+    state = state.copyWith(
+      isTracking: true,
+      activeShipmentId: shipmentId,
+      error: null,
     );
-
-    state = state.copyWith(distanceToDestination: distance);
-
-    // Calculate ETA based on current speed
-    // Assume average speed of 40 km/h if current speed is 0 or null
-    final currentSpeed = state.currentLocation!.speed ?? 0;
-    final averageSpeed = currentSpeed > 0 ? currentSpeed : 40.0; // km/h
-
-    // Convert distance from meters to km
-    final distanceKm = distance / 1000;
-
-    // Calculate time in hours
-    final timeHours = distanceKm / averageSpeed;
-
-    // Calculate ETA
-    final now = DateTime.now();
-    final eta = now.add(Duration(minutes: (timeHours * 60).round()));
-
-    // Format ETA as "HH:mm"
-    final etaFormatted =
-        '${eta.hour.toString().padLeft(2, '0')}:${eta.minute.toString().padLeft(2, '0')}';
-
-    state = state.copyWith(estimatedArrival: etaFormatted);
-  }
-
-  /// Start tracking
-  Future<void> startTracking(String driverId) async {
-    try {
-      state = state.copyWith(isLoading: true, errorMessage: null);
-
-      await _gpsService.startTracking(
-        onLocationUpdate: (position) {
-          updateLocation(position, driverId);
-        },
-        intervalSeconds: 10, // Update setiap 10 detik
-      );
-
-      state = state.copyWith(isTracking: true, isLoading: false);
-    } catch (e) {
-      state = state.copyWith(
-        errorMessage: 'Gagal memulai tracking: $e',
-        isLoading: false,
-      );
-    }
   }
 
   /// Stop tracking
   void stopTracking() {
-    _gpsService.stopTracking();
-    state = state.copyWith(isTracking: false);
+    state = state.copyWith(isTracking: false, activeShipmentId: null);
   }
 
-  /// Save current location to database
+  /// Update current location
+  void updateLocation(double lat, double lng) {
+    if (state.isTracking) {
+      state = state.copyWith(currentLat: lat, currentLng: lng);
+      _calculateEstimatedArrival(lat, lng);
+    }
+  }
+
+  /// Update current location with DriverLocation object
+  void updateDriverLocation(DriverLocation location) {
+    if (state.isTracking) {
+      state = state.copyWith(
+        currentLocation: location,
+        currentLat: location.latitude,
+        currentLng: location.longitude,
+      );
+      _calculateEstimatedArrival(location.latitude, location.longitude);
+    }
+  }
+
+  /// Save location to database
   Future<void> saveLocationToDatabase(String driverId) async {
-    if (state.currentLocation == null) return;
+    if (!state.isTracking ||
+        state.currentLat == null ||
+        state.currentLng == null) {
+      return;
+    }
 
     try {
-      await _locationRepository.saveLocation(
-        shipmentId: state.activeShipment?.id ?? 'no-shipment',
-        driverId: driverId,
-        latitude: state.currentLocation!.latitude,
-        longitude: state.currentLocation!.longitude,
-        bearing: state.currentLocation!.heading,
-        speed: state.currentLocation!.speed,
-        isActive: state.isTracking,
+      state = state.copyWith(isLoading: true);
+
+      // Get current position for accuracy
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
       );
+
+      // Insert location into driver_locations table
+      await _supabase.from('driver_locations').insert({
+        'driver_id': driverId,
+        'shipment_id': state.activeShipmentId,
+        'latitude': position.latitude,
+        'longitude': position.longitude,
+        'accuracy': position.accuracy,
+        'altitude': position.altitude,
+        'speed': position.speed,
+        'heading': position.heading,
+        'timestamp': DateTime.now().toIso8601String(),
+      });
+
+      state = state.copyWith(isLoading: false);
     } catch (e) {
-      // Log error but don't stop tracking
-      print('Error saving location to database: $e');
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Failed to save location: $e',
+      );
     }
   }
 
-  /// Get formatted distance
+  /// Calculate distance between two points using Haversine formula
+  double _calculateDistance(
+    double lat1,
+    double lon1,
+    double lat2,
+    double lon2,
+  ) {
+    const double earthRadius = 6371; // km
+
+    final double dLat = _degreesToRadians(lat2 - lat1);
+    final double dLon = _degreesToRadians(lon2 - lon1);
+
+    final double a =
+        sin(dLat / 2) * sin(dLat / 2) +
+        cos(_degreesToRadians(lat1)) *
+            cos(_degreesToRadians(lat2)) *
+            sin(dLon / 2) *
+            sin(dLon / 2);
+
+    final double c = 2 * atan2(sqrt(a), sqrt(1 - a));
+
+    return earthRadius * c;
+  }
+
+  double _degreesToRadians(double degrees) {
+    return degrees * pi / 180;
+  }
+
+  /// Get formatted distance to destination
   String getFormattedDistance() {
-    if (state.distanceToDestination == null) return '-';
-
-    final distanceKm = state.distanceToDestination! / 1000;
-
-    if (distanceKm < 1) {
-      return '${state.distanceToDestination!.toStringAsFixed(0)} m';
-    } else {
-      return '${distanceKm.toStringAsFixed(1)} km';
+    if (state.currentLat == null || state.currentLng == null) {
+      return '-';
     }
+
+    // Get destination from active shipment if available
+    if (state.destinationLat != null && state.destinationLng != null) {
+      final distance = _calculateDistance(
+        state.currentLat!,
+        state.currentLng!,
+        state.destinationLat!,
+        state.destinationLng!,
+      );
+
+      if (distance < 1) {
+        return '${(distance * 1000).toStringAsFixed(0)} m';
+      } else {
+        return '${distance.toStringAsFixed(1)} km';
+      }
+    }
+
+    return '-';
   }
 
-  /// Clear error message
+  /// Calculate estimated arrival time
+  void _calculateEstimatedArrival(double currentLat, double currentLng) {
+    // This would calculate ETA based on distance and average speed
+    // For now, set a placeholder
+    final now = DateTime.now();
+    final eta = now.add(const Duration(minutes: 30)); // Example: 30 min ETA
+    state = state.copyWith(
+      estimatedArrival:
+          '${eta.hour.toString().padLeft(2, '0')}:${eta.minute.toString().padLeft(2, '0')}',
+    );
+  }
+
+  /// Set error
+  void setError(String error) {
+    state = state.copyWith(error: error);
+  }
+
+  /// Clear error
   void clearError() {
-    state = state.copyWith(errorMessage: null);
-  }
-
-  /// Reset state
-  void reset() {
-    _gpsService.stopTracking();
-    state = const DriverTrackingState();
+    state = state.copyWith(error: null);
   }
 }
-
-/// Provider untuk Driver Tracking Controller
-final driverTrackingControllerProvider =
-    NotifierProvider<DriverTrackingController, DriverTrackingState>(() {
-      return DriverTrackingController();
-    });

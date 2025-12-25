@@ -33,10 +33,7 @@ class AdminErrorWidget extends StatelessWidget {
             SizedBox(height: 8.h),
             Text(
               message,
-              style: TextStyle(
-                fontSize: 12.sp,
-                color: const Color(0xFF757575),
-              ),
+              style: TextStyle(fontSize: 12.sp, color: const Color(0xFF757575)),
               textAlign: TextAlign.center,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
@@ -46,10 +43,7 @@ class AdminErrorWidget extends StatelessWidget {
               TextButton.icon(
                 onPressed: onRetry,
                 icon: Icon(Icons.refresh, size: 16.sp),
-                label: Text(
-                  'Coba Lagi',
-                  style: TextStyle(fontSize: 12.sp),
-                ),
+                label: Text('Coba Lagi', style: TextStyle(fontSize: 12.sp)),
                 style: TextButton.styleFrom(
                   foregroundColor: const Color(0xFF1B5E20),
                 ),
@@ -61,10 +55,7 @@ class AdminErrorWidget extends StatelessWidget {
     );
 
     if (useCard) {
-      return AdminCardContainer(
-        padding: EdgeInsets.zero,
-        child: content,
-      );
+      return AdminCardContainer(padding: EdgeInsets.zero, child: content);
     }
 
     return content;

@@ -84,6 +84,64 @@ class User extends Equatable {
     return phone != null && address != null;
   }
 
+  /// Create User from JSON map
+  factory User.fromJson(Map<String, dynamic> json) {
+    return User(
+      id: json['id'] as String,
+      email: json['email'] as String? ?? '',
+      fullName: json['full_name'] as String? ?? json['name'] as String? ?? '',
+      roleId: json['role_id'] as int?,
+      roleName: json['role_name'] as String?,
+      phone: json['phone'] as String?,
+      address: json['address'] as String?,
+      city: json['city'] as String?,
+      province: json['province'] as String?,
+      postalCode: json['postal_code'] as String?,
+      avatarUrl: json['avatar_url'] as String?,
+      companyName: json['company_name'] as String?,
+      jobTitle: json['job_title'] as String?,
+      isActive: json['is_active'] as bool? ?? true,
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'] as String)
+          : DateTime.now(),
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at'] as String)
+          : null,
+      driverLicense: json['driver_license'] as String?,
+      vehicleType: json['vehicle_type'] as String?,
+      vehiclePlate: json['vehicle_plate'] as String?,
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
+    );
+  }
+
+  /// Convert User to JSON map
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'email': email,
+      'full_name': fullName,
+      'role_id': roleId,
+      'role_name': roleName,
+      'phone': phone,
+      'address': address,
+      'city': city,
+      'province': province,
+      'postal_code': postalCode,
+      'avatar_url': avatarUrl,
+      'company_name': companyName,
+      'job_title': jobTitle,
+      'is_active': isActive,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt?.toIso8601String(),
+      'driver_license': driverLicense,
+      'vehicle_type': vehicleType,
+      'vehicle_plate': vehiclePlate,
+      'latitude': latitude,
+      'longitude': longitude,
+    };
+  }
+
   User copyWith({
     String? id,
     String? email,

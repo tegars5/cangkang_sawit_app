@@ -56,7 +56,7 @@ class _AdminSettingsPageState extends ConsumerState<AdminSettingsPage> {
                 children: [
                   CircleAvatar(
                     radius: 40.r,
-                    backgroundColor: const Color(0xFF1B5E20).withOpacity(0.1),
+                    backgroundColor: const Color(0xFF1B5E20).withValues(alpha: 0.1),
                     child: Text(
                       'AD',
                       style: TextStyle(
@@ -365,7 +365,7 @@ class _AdminSettingsPageState extends ConsumerState<AdminSettingsPage> {
         borderRadius: BorderRadius.circular(12.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -377,7 +377,7 @@ class _AdminSettingsPageState extends ConsumerState<AdminSettingsPage> {
           width: 40.w,
           height: 40.h,
           decoration: BoxDecoration(
-            color: const Color(0xFF1B5E20).withOpacity(0.1),
+            color: const Color(0xFF1B5E20).withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8.r),
           ),
           child: Icon(icon, color: const Color(0xFF1B5E20), size: 20.sp),

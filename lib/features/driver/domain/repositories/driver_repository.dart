@@ -1,6 +1,6 @@
 import 'package:dartz/dartz.dart' as dartz;
 import '../../../../core/error/failures.dart';
-import '../../../../shared/models/shipment.dart';
+import '../../../shipments/domain/entities/shipment.dart';
 
 /// Repository interface for Driver operations
 abstract class DriverRepository {
@@ -31,5 +31,38 @@ abstract class DriverRepository {
     required String driverId,
     required double latitude,
     required double longitude,
+  });
+
+  /// Get assigned deliveries for driver
+  Future<dartz.Either<Failure, List<Shipment>>> getAssignedDeliveries({
+    required String driverId,
+  });
+
+  /// Get today's deliveries for driver
+  Future<dartz.Either<Failure, List<Shipment>>> getTodayDeliveries({
+    required String driverId,
+  });
+
+  /// Mark delivery as picked up
+  Future<dartz.Either<Failure, Shipment>> markAsPickedUp({
+    required String shipmentId,
+  });
+
+  /// Mark delivery as delivered
+  Future<dartz.Either<Failure, Shipment>> markAsDelivered({
+    required String shipmentId,
+    String? notes,
+  });
+
+  /// Update delivery status
+  Future<dartz.Either<Failure, Shipment>> updateDeliveryStatus({
+    required String shipmentId,
+    required String status,
+  });
+
+  /// Upload proof of delivery
+  Future<dartz.Either<Failure, String>> uploadProofOfDelivery({
+    required String shipmentId,
+    required String imagePath,
   });
 }

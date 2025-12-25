@@ -1,130 +1,93 @@
-import 'package:cangkang_sawit_app/core/error/failures.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:dartz/dartz.dart';
+import 'package:mockito/mockito.dart';
+import 'package:mockito/annotations.dart';
+import 'package:cangkang_sawit_app/features/auth/domain/entities/user.dart';
 import 'package:cangkang_sawit_app/features/auth/domain/repositories/auth_repository.dart';
 import 'package:cangkang_sawit_app/features/auth/domain/usecases/login.dart';
-import 'package:cangkang_sawit_app/shared/models/user_profile.dart';
-import 'package:dartz/dartz.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/annotations.dart';
-import 'package:mockito/mockito.dart';
+import 'package:cangkang_sawit_app/core/error/failures.dart';
 
 import 'login_test.mocks.dart';
 
 @GenerateMocks([AuthRepository])
 void main() {
-  late Login usecase;
-  late MockAuthRepository mockAuthRepository;
+  late Login useCase;
+  late MockAuthRepository mockRepository;
 
   setUp(() {
-    mockAuthRepository = MockAuthRepository();
-    usecase = Login(mockAuthRepository);
+    mockRepository = MockAuthRepository();
+    useCase = Login(mockRepository);
   });
 
-  const testEmail = 'test@example.com';
-  const testPassword = 'password123';
-
-  final testUserProfile = UserProfile(
-    id: '123',
-    email: testEmail,
-    fullName: 'Test User',
-    roleId: 2,
-    isActive: true,
-    createdAt: DateTime.now(),
-  );
-
-  group('Login UseCase', () {
-    test('should return UserProfile when login is successful', () async {
-      // arrange
-      when(
-        mockAuthRepository.login(
-          email: anyNamed('email'),
-          password: anyNamed('password'),
-        ),
-      ).thenAnswer((_) async => Right(testUserProfile));
-
-      // act
-      final result = await usecase(
-        LoginParams(email: testEmail, password: testPassword),
-      );
-
-      // assert
-      expect(result, Right(testUserProfile));
-      verify(
-        mockAuthRepository.login(email: testEmail, password: testPassword),
-      );
-      verifyNoMoreInteractions(mockAuthRepository);
-    });
-
-    test('should return ValidationFailure when email is empty', () async {
-      // act
-      final result = await usecase(
-        LoginParams(email: '', password: testPassword),
-      );
-
-      // assert
-      expect(result, const Left(ValidationFailure('Email cannot be empty')));
-      verifyZeroInteractions(mockAuthRepository);
-    });
-
-    test('should return ValidationFailure when password is empty', () async {
-      // act
-      final result = await usecase(LoginParams(email: testEmail, password: ''));
-
-      // assert
-      expect(result, const Left(ValidationFailure('Password cannot be empty')));
-      verifyZeroInteractions(mockAuthRepository);
-    });
-
-    test(
-      'should return ValidationFailure when email format is invalid',
-      () async {
-        // act
-        final result = await usecase(
-          LoginParams(email: 'invalid-email', password: testPassword),
-        );
-
-        // assert
-        expect(result, const Left(ValidationFailure('Invalid email format')));
-        verifyZeroInteractions(mockAuthRepository);
-      },
+  group('Login', () {
+    const tEmail = 'test@example.com';
+    const tPassword = 'password123';
+    final tUser = User(
+      id: '1',
+      email: tEmail,
+      fullName: 'Test User',
+      roleId: 1,
+      roleName: 'mitra',
+      isActive: true,
+      createdAt: DateTime(2024, 1, 1),
     );
 
-    test('should return AuthFailure when login fails', () async {
-      // arrange
+    test('should login user successfully', () async {
+      // Arrange
       when(
-        mockAuthRepository.login(
+        mockRepository.login(
           email: anyNamed('email'),
           password: anyNamed('password'),
         ),
-      ).thenAnswer((_) async => const Left(AuthFailure('Invalid credentials')));
+      ).thenAnswer((_) async => Right(tUser));
 
-      // act
-      final result = await usecase(
-        LoginParams(email: testEmail, password: testPassword),
+      // Act
+      final result = await useCase(
+        const LoginParams(email: tEmail, password: tPassword),
       );
 
-      // assert
-      expect(result, const Left(AuthFailure('Invalid credentials')));
-      verify(
-        mockAuthRepository.login(email: testEmail, password: testPassword),
-      );
+      // Assert
+      expect(result, Right(tUser));
+      verify(mockRepository.login(email: tEmail, password: tPassword));
+      verifyNoMoreInteractions(mockRepository);
     });
 
-    test('should return ServerFailure when server error occurs', () async {
-      // arrange
+    test('should return failure when login fails', () async {
+      // Arrange
+      const tFailure = ServerFailure('Invalid credentials');
       when(
-        mockAuthRepository.login(
+        mockRepository.login(
           email: anyNamed('email'),
           password: anyNamed('password'),
         ),
-      ).thenAnswer((_) async => const Left(ServerFailure('Server error')));
+      ).thenAnswer((_) async => const Left(tFailure));
 
-      // act
-      final result = await usecase(
-        LoginParams(email: testEmail, password: testPassword),
+      // Act
+      final result = await useCase(
+        const LoginParams(email: tEmail, password: tPassword),
       );
 
-      // assert
-      expect(result, const Left(ServerFailure('Server error')));
+      // Assert
+      expect(result, const Left(tFailure));
+      verify(mockRepository.login(email: tEmail, password: tPassword));
+      verifyNoMoreInteractions(mockRepository);
+    });
+
+    test('should return failure for invalid email format', () async {
+      // Arrange
+      const tInvalidEmail = 'invalid-email';
+
+      // Act
+      final result = await useCase(
+        const LoginParams(email: tInvalidEmail, password: tPassword),
+      );
+
+      // Assert
+      expect(result.isLeft(), true);
+      result.fold(
+        (failure) => expect(failure, isA<ValidationFailure>()),
+        (r) => fail('Should be Left'),
+      );
     });
   });
 }

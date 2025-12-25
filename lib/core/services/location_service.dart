@@ -95,14 +95,14 @@ class LocationService {
   Future<bool> hasPermission() async {
     LocationPermission permission = await Geolocator.checkPermission();
     return permission == LocationPermission.always ||
-           permission == LocationPermission.whileInUse;
+        permission == LocationPermission.whileInUse;
   }
 
   /// Request location permission
   Future<bool> requestPermission() async {
     LocationPermission permission = await Geolocator.requestPermission();
     return permission == LocationPermission.always ||
-           permission == LocationPermission.whileInUse;
+        permission == LocationPermission.whileInUse;
   }
 
   /// Calculate distance between two points in meters
@@ -134,9 +134,6 @@ class LocationService {
 
   /// Convert Position to Google Maps format
   Map<String, double> positionToGoogleMapsCoordinates(Position position) {
-    return {
-      'latitude': position.latitude,
-      'longitude': position.longitude,
-    };
+    return {'latitude': position.latitude, 'longitude': position.longitude};
   }
 }

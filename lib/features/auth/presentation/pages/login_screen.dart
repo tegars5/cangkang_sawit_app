@@ -36,12 +36,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       case 1: // Admin
         nextScreen = const AdminMainLayout();
         break;
-      case 2: // Mitra
-      case 11: // Mitra Bisnis (alternative ID)
+      case 2: // Mitra Bisnis
+      case 11: // Mitra Bisnis (legacy, if exists)
         nextScreen = const MitraDashboardScreen();
         break;
-      case 3: // Driver
-      case 12: // Driver (alternative ID)
+      case 3: // Driver (updated from 12)
+      case 12: // Driver (legacy support)
         nextScreen = const DriverDashboardScreen();
         break;
       default:
@@ -123,7 +123,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       borderRadius: BorderRadius.circular(12.r),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
+                          color: Colors.black.withValues(alpha: 0.1),
                           blurRadius: 10,
                           offset: const Offset(0, 2),
                         ),

@@ -30,10 +30,7 @@ class AdminLoadingWidget extends StatelessWidget {
 
     if (useCard) {
       return AdminCardContainer(
-        child: Padding(
-          padding: EdgeInsets.all(16.w),
-          child: loader,
-        ),
+        child: Padding(padding: EdgeInsets.all(16.w), child: loader),
       );
     }
 
@@ -46,11 +43,7 @@ class AdminLoadingCard extends StatelessWidget {
   final double? height;
   final double? width;
 
-  const AdminLoadingCard({
-    super.key,
-    this.height,
-    this.width,
-  });
+  const AdminLoadingCard({super.key, this.height, this.width});
 
   @override
   Widget build(BuildContext context) {
@@ -62,7 +55,7 @@ class AdminLoadingCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),

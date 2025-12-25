@@ -114,6 +114,56 @@ class Product extends Equatable {
     updatedAt,
   ];
 
+  /// Formatted price display
+  String get formattedPrice => 'Rp ${pricePerTon.toStringAsFixed(2)}/ton';
+
+  /// Formatted stock display
+  String get formattedStock => '${stockAvailable.toStringAsFixed(2)} $unit';
+
+  /// Create Product from JSON map
+  factory Product.fromJson(Map<String, dynamic> json) {
+    return Product(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      description: json['description'] as String?,
+      pricePerTon: (json['price_per_ton'] as num).toDouble(),
+      unit: json['unit'] as String? ?? 'ton',
+      stockAvailable: (json['stock_available'] as num?)?.toDouble() ?? 0,
+      minimumOrder: (json['minimum_order'] as num?)?.toDouble() ?? 1,
+      category: json['category'] as String? ?? 'Palm Shell',
+      productCode: json['product_code'] as String?,
+      specifications: json['specifications'] as String?,
+      imageUrl: json['image_url'] as String?,
+      isActive: json['is_active'] as bool? ?? true,
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'] as String)
+          : null,
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at'] as String)
+          : null,
+    );
+  }
+
+  /// Convert Product to JSON map
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'description': description,
+      'price_per_ton': pricePerTon,
+      'unit': unit,
+      'stock_available': stockAvailable,
+      'minimum_order': minimumOrder,
+      'category': category,
+      'product_code': productCode,
+      'specifications': specifications,
+      'image_url': imageUrl,
+      'is_active': isActive,
+      'created_at': createdAt?.toIso8601String(),
+      'updated_at': updatedAt?.toIso8601String(),
+    };
+  }
+
   @override
   String toString() =>
       'Product(id: $id, name: $name, price: $pricePerTon, stock: $stockAvailable)';

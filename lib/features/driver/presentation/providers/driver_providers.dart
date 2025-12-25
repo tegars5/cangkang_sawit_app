@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../../shared/models/models.dart';
+import '../../../shipments/domain/entities/shipment.dart';
 import '../../domain/repositories/driver_repository.dart';
 import '../../domain/usecases/get_driver_tasks.dart';
 import '../../data/datasources/driver_remote_datasource.dart';

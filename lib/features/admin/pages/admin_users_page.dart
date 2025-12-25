@@ -204,7 +204,7 @@ class _AdminUsersPageState extends ConsumerState<AdminUsersPage> {
           borderRadius: BorderRadius.circular(12.r),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
@@ -220,7 +220,7 @@ class _AdminUsersPageState extends ConsumerState<AdminUsersPage> {
                 children: [
                   CircleAvatar(
                     radius: 24.r,
-                    backgroundColor: const Color(0xFF1B5E20).withOpacity(0.1),
+                    backgroundColor: const Color(0xFF1B5E20).withValues(alpha: 0.1),
                     child: Text(
                       driver['name'].split(' ').map((n) => n[0]).take(2).join(),
                       style: TextStyle(
@@ -318,7 +318,7 @@ class _AdminUsersPageState extends ConsumerState<AdminUsersPage> {
                 Container(
                   padding: EdgeInsets.all(8.w),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1B5E20).withOpacity(0.1),
+                    color: const Color(0xFF1B5E20).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8.r),
                   ),
                   child: Row(
@@ -399,7 +399,7 @@ class _AdminUsersPageState extends ConsumerState<AdminUsersPage> {
                 children: [
                   CircleAvatar(
                     radius: 30.r,
-                    backgroundColor: const Color(0xFF1B5E20).withOpacity(0.1),
+                    backgroundColor: const Color(0xFF1B5E20).withValues(alpha: 0.1),
                     child: Text(
                       driver['name'].split(' ').map((n) => n[0]).take(2).join(),
                       style: TextStyle(

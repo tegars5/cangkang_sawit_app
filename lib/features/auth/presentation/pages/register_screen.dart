@@ -19,9 +19,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController(); // Added
   final _phoneController = TextEditingController();
 
   bool _isPasswordVisible = false;
+  bool _isConfirmPasswordVisible = false; // Added
   String _selectedRole = 'Mitra Bisnis';
   final List<String> _roles = ['Mitra Bisnis', 'Driver'];
 
@@ -30,6 +32,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose(); // Added
     _phoneController.dispose();
     super.dispose();
   }
@@ -357,6 +360,74 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     }
                     if (value.length < 6) {
                       return 'Password minimal 6 karakter';
+                    }
+                    return null;
+                  },
+                ),
+                SizedBox(height: 20.h),
+
+                // Confirm Password Field
+                Text(
+                  'Konfirmasi Password',
+                  style: TextStyle(
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF374151),
+                  ),
+                ),
+                SizedBox(height: 8.h),
+                TextFormField(
+                  controller: _confirmPasswordController,
+                  obscureText: !_isConfirmPasswordVisible,
+                  enabled: !authState.isLoading,
+                  decoration: InputDecoration(
+                    hintText: 'Masukkan ulang password',
+                    prefixIcon: const Icon(
+                      Icons.lock_outline,
+                      color: Color(0xFF2E7D32),
+                    ),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _isConfirmPasswordVisible
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                        color: const Color(0xFF6B7280),
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _isConfirmPasswordVisible =
+                              !_isConfirmPasswordVisible;
+                        });
+                      },
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey[50],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12.r),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12.r),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12.r),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF2E7D32),
+                        width: 2,
+                      ),
+                    ),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 16.w,
+                      vertical: 16.h,
+                    ),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Konfirmasi password harus diisi';
+                    }
+                    if (value != _passwordController.text) {
+                      return 'Password tidak cocok';
                     }
                     return null;
                   },

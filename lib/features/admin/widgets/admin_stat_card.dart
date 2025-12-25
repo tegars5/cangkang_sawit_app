@@ -34,7 +34,7 @@ class AdminStatCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -49,7 +49,7 @@ class AdminStatCard extends StatelessWidget {
               Container(
                 padding: EdgeInsets.all(8.w),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10.r),
                 ),
                 child: Icon(icon, color: color, size: 20.sp),
@@ -90,10 +90,7 @@ class AdminStatCard extends StatelessWidget {
           SizedBox(height: 2.h),
           Text(
             subtitle,
-            style: TextStyle(
-              fontSize: 10.sp,
-              color: const Color(0xFF9E9E9E),
-            ),
+            style: TextStyle(fontSize: 10.sp, color: const Color(0xFF9E9E9E)),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -103,14 +100,14 @@ class AdminStatCard extends StatelessWidget {
   }
 
   Widget _buildTrendBadge(bool isPositive) {
-    final trendColor = isPositive 
-        ? const Color(0xFF4CAF50) 
+    final trendColor = isPositive
+        ? const Color(0xFF4CAF50)
         : const Color(0xFFF44336);
-    
+
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
       decoration: BoxDecoration(
-        color: trendColor.withOpacity(0.1),
+        color: trendColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(6.r),
       ),
       child: Row(

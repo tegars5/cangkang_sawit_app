@@ -1,6 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/error/exceptions.dart';
-import '../../../../shared/models/models.dart';
+import '../../../shipments/domain/entities/shipment.dart';
 
 /// Remote data source for Driver operations
 class DriverRemoteDataSource {
@@ -80,6 +80,25 @@ class DriverRemoteDataSource {
     }
   }
 
+  /// Update shipment status
+  Future<Shipment> updateShipmentStatus({
+    required String shipmentId,
+    required String status,
+  }) async {
+    try {
+      final response = await _client
+          .from('shipments')
+          .update({'status': status})
+          .eq('id', shipmentId)
+          .select()
+          .single();
+
+      return Shipment.fromJson(response);
+    } catch (e) {
+      throw ServerException(e.toString());
+    }
+  }
+
   /// Complete delivery
   Future<Shipment> completeDelivery({
     required String shipmentId,
@@ -138,6 +157,6 @@ class DriverRemoteDataSource {
         .eq('id', shipmentId)
         .single();
 
-    return Shipment.fromJson(response as Map<String, dynamic>);
+    return Shipment.fromJson(response);
   }
 }

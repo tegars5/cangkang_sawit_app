@@ -1,34 +1,103 @@
-import 'package:cangkang_sawit_app/shared/models/shipment.dart';
-import 'package:dartz/dartz.dart' as dartz;
+import 'package:dartz/dartz.dart';
 import '../../../../core/error/failures.dart';
-import '../../../../shared/models/shipment_timeline.dart';
+import '../entities/shipment.dart';
 
-/// Repository interface for Shipment operations
+/// Repository interface for shipment operations
+///
+/// Defines the contract for shipment data operations.
+/// Implementations should handle data source communication and error handling.
 abstract class ShipmentRepository {
   /// Get all shipments with optional filtering
-  Future<dartz.Either<Failure, List<Shipment>>> getShipments({
+  ///
+  /// [status] - Filter by shipment status
+  /// [driverId] - Filter by assigned driver
+  /// [orderId] - Filter by order ID
+  Future<Either<Failure, List<Shipment>>> getShipments({
     String? status,
     String? driverId,
+    String? orderId,
   });
 
-  /// Get shipment by ID
-  Future<dartz.Either<Failure, Shipment>> getShipmentById(String shipmentId);
+  /// Get a single shipment by ID
+  Future<Either<Failure, Shipment>> getShipmentById(String id);
 
-  /// Assign driver to shipment
-  Future<dartz.Either<Failure, Shipment>> assignDriver({
+  /// Create a new shipment from an order
+  Future<Either<Failure, Shipment>> createShipment({
+    required String orderId,
+    required String pickupAddress,
+    required String deliveryAddress,
+    double? pickupLatitude,
+    double? pickupLongitude,
+    double? deliveryLatitude,
+    double? deliveryLongitude,
+    DateTime? scheduledPickupDate,
+    DateTime? estimatedDeliveryDate,
+    required double totalWeight,
+    required int totalQuantity,
+    String? notes,
+  });
+
+  /// Assign a driver to a shipment
+  Future<Either<Failure, Shipment>> assignDriver({
     required String shipmentId,
     required String driverId,
+    required String driverName,
+    String? vehiclePlate,
   });
 
   /// Update shipment status
-  Future<dartz.Either<Failure, Shipment>> updateShipmentStatus({
+  Future<Either<Failure, Shipment>> updateShipmentStatus({
     required String shipmentId,
-    required String newStatus,
+    required String status,
+    DateTime? actualPickupDate,
+    DateTime? actualDeliveryDate,
+    String? notes,
   });
 
-  /// Add timeline event
-  Future<dartz.Either<Failure, void>> addTimelineEvent({
+  /// Mark shipment as picked up
+  Future<Either<Failure, Shipment>> markAsPickedUp({
     required String shipmentId,
-    required ShipmentTimeline event,
+    DateTime? actualPickupDate,
   });
+
+  /// Mark shipment as delivered
+  Future<Either<Failure, Shipment>> markAsDelivered({
+    required String shipmentId,
+    DateTime? actualDeliveryDate,
+    String? proofOfDeliveryUrl,
+    String? recipientName,
+    String? recipientSignature,
+  });
+
+  /// Cancel a shipment
+  Future<Either<Failure, Shipment>> cancelShipment({
+    required String shipmentId,
+    String? reason,
+  });
+
+  /// Update shipment details
+  Future<Either<Failure, Shipment>> updateShipment({
+    required String shipmentId,
+    String? pickupAddress,
+    String? deliveryAddress,
+    double? pickupLatitude,
+    double? pickupLongitude,
+    double? deliveryLatitude,
+    double? deliveryLongitude,
+    DateTime? scheduledPickupDate,
+    DateTime? estimatedDeliveryDate,
+    String? notes,
+  });
+
+  /// Get shipments by driver
+  Future<Either<Failure, List<Shipment>>> getShipmentsByDriver(String driverId);
+
+  /// Get shipments by order
+  Future<Either<Failure, List<Shipment>>> getShipmentsByOrder(String orderId);
+
+  /// Get active shipments (not delivered or cancelled)
+  Future<Either<Failure, List<Shipment>>> getActiveShipments();
+
+  /// Get shipments requiring action (pending, assigned without pickup)
+  Future<Either<Failure, List<Shipment>>> getShipmentsRequiringAction();
 }

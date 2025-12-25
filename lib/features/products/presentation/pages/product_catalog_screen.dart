@@ -204,7 +204,7 @@ class _ProductCatalogScreenState extends ConsumerState<ProductCatalogScreen> {
                   'Kualitas terjamin untuk kebutuhan biomass energy',
                   style: TextStyle(
                     fontSize: 12.sp,
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha: 0.9),
                   ),
                 ),
               ],
@@ -486,14 +486,11 @@ class _ProductCatalogScreenState extends ConsumerState<ProductCatalogScreen> {
   }
 
   void _orderProduct(Product product) {
-    // TODO: Navigate to create order screen
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Fitur pemesanan untuk ${product.name} akan segera hadir',
-        ),
-        backgroundColor: const Color(0xFF2E7D32),
-      ),
+    // Navigate to cart and add product
+    Navigator.pushNamed(
+      context,
+      '/cart',
+      arguments: {'product': product, 'quantity': 1.0},
     );
   }
 }

@@ -33,7 +33,15 @@ class AuthRemoteDataSource {
 
       return UserProfile.fromJson(profileData);
     } on AuthException catch (e) {
-      // Supabase AuthException
+      // Handle specific Supabase auth errors with user-friendly messages
+      if (e.message.contains('Invalid login credentials') ||
+          e.message.contains('invalid') ||
+          e.message.contains('credentials')) {
+        throw const AppAuthException('Email atau password salah');
+      }
+      if (e.message.contains('Email not confirmed')) {
+        throw const AppAuthException('Email belum dikonfirmasi');
+      }
       throw AppAuthException(e.message);
     } on PostgrestException catch (e) {
       throw ServerException('Failed to get profile: ${e.message}');
@@ -51,29 +59,51 @@ class AuthRemoteDataSource {
     Map<String, dynamic>? additionalData,
   }) async {
     try {
+      // Sign up with metadata for trigger to read
       final response = await _client.auth.signUp(
         email: email,
         password: password,
+        data: {
+          'full_name': name,
+          'role': role, // Trigger will read this
+          ...?additionalData,
+        },
       );
 
       if (response.user == null) {
         throw const AppAuthException('Registration failed');
       }
 
-      // Create profile
-      final profileData = {
-        'id': response.user!.id,
-        'name': name,
-        'email': email,
-        'role': role,
-        ...?additionalData,
-      };
+      // Wait a bit for trigger to create profile
+      await Future.delayed(const Duration(milliseconds: 500));
 
-      await _client.from('profiles').insert(profileData);
+      // Fetch the profile created by trigger
+      try {
+        final profileData = await _client
+            .from('profiles')
+            .select()
+            .eq('id', response.user!.id)
+            .single();
 
-      return UserProfile.fromJson(profileData);
+        return UserProfile.fromJson(profileData);
+      } on PostgrestException catch (e) {
+        // Profile not found - trigger might have failed
+        if (e.code == 'PGRST116') {
+          throw ServerException(
+            'Profile creation failed. Please contact support.',
+          );
+        }
+        throw ServerException('Failed to get profile: ${e.message}');
+      }
     } on AuthException catch (e) {
-      // Supabase AuthException
+      // Handle specific Supabase auth errors
+      if (e.message.contains('already registered') ||
+          e.message.contains('already exists')) {
+        throw const AppAuthException('Email sudah terdaftar');
+      }
+      if (e.message.contains('Password')) {
+        throw const AppAuthException('Password terlalu lemah');
+      }
       throw AppAuthException(e.message);
     } on PostgrestException catch (e) {
       throw ServerException('Failed to create profile: ${e.message}');

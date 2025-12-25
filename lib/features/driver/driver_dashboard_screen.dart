@@ -4,8 +4,9 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 
-import '../../core/repositories/shipment_repository.dart';
-import '../../shared/models/shipment.dart';
+import '../shipments/data/repositories/shipment_repository_impl.dart';
+import '../shipments/data/datasources/shipment_remote_datasource.dart';
+import '../shipments/domain/entities/shipment.dart';
 import '../../widgets/common/logout_button.dart';
 import 'pages/task_detail_page.dart';
 import 'pages/driver_navigation_screen.dart';
@@ -47,7 +48,13 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
       if (userId == null) throw 'User not authenticated';
 
       // Get all shipments for this driver
-      final allShipments = await ShipmentRepository.getDriverShipments(userId);
+      final datasource = ShipmentRemoteDataSource();
+      final repository = ShipmentRepositoryImpl(remoteDataSource: datasource);
+      final result = await repository.getShipmentsByDriver(userId);
+      final allShipments = result.fold(
+        (failure) => throw failure.message,
+        (shipments) => shipments,
+      );
 
       // Filter by status
       final active = allShipments
@@ -201,7 +208,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
         borderRadius: BorderRadius.circular(12.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -314,7 +321,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
                       ),
                     ),
                     Text(
-                      shipment.order?.orderNumber ?? 'N/A',
+                      'Order #${shipment.orderId}',
                       style: TextStyle(
                         fontSize: 16.sp,
                         fontWeight: FontWeight.bold,
@@ -336,7 +343,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
               SizedBox(width: 8.w),
               Expanded(
                 child: Text(
-                  shipment.order?.deliveryAddress ?? 'Alamat tidak tersedia',
+                  shipment.deliveryAddress,
                   style: TextStyle(fontSize: 14.sp, color: Colors.black87),
                 ),
               ),
@@ -446,7 +453,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
         borderRadius: BorderRadius.circular(12.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -489,7 +496,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
         Container(
           padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 4.h),
           decoration: BoxDecoration(
-            color: const Color(0xFF1B5E20).withOpacity(0.1),
+            color: const Color(0xFF1B5E20).withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12.r),
           ),
           child: Text(
@@ -544,10 +551,10 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12.r),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 5,
               offset: const Offset(0, 2),
             ),
@@ -558,7 +565,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
             Container(
               padding: EdgeInsets.all(10.w),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8.r),
               ),
               child: Icon(
@@ -573,7 +580,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    shipment.order?.orderNumber ?? 'N/A',
+                    'Order #${shipment.orderId}',
                     style: TextStyle(
                       fontSize: 14.sp,
                       fontWeight: FontWeight.bold,
@@ -582,7 +589,7 @@ class _DriverDashboardScreenState extends ConsumerState<DriverDashboardScreen> {
                   ),
                   SizedBox(height: 4.h),
                   Text(
-                    shipment.order?.deliveryAddress ?? 'Alamat tidak tersedia',
+                    shipment.deliveryAddress,
                     style: TextStyle(fontSize: 12.sp, color: Colors.grey[600]),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,

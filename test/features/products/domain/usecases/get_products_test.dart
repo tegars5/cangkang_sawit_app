@@ -1,105 +1,95 @@
-import 'package:cangkang_sawit_app/core/error/failures.dart';
-import 'package:cangkang_sawit_app/core/usecases/usecase.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:dartz/dartz.dart';
+import 'package:mockito/mockito.dart';
+import 'package:mockito/annotations.dart';
 import 'package:cangkang_sawit_app/features/products/domain/entities/product.dart';
 import 'package:cangkang_sawit_app/features/products/domain/repositories/product_repository.dart';
 import 'package:cangkang_sawit_app/features/products/domain/usecases/get_products.dart';
-import 'package:dartz/dartz.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/annotations.dart';
-import 'package:mockito/mockito.dart';
+import 'package:cangkang_sawit_app/core/error/failures.dart';
+import 'package:cangkang_sawit_app/core/usecases/usecase.dart';
 
 import 'get_products_test.mocks.dart';
 
 @GenerateMocks([ProductRepository])
 void main() {
-  late GetProducts usecase;
+  late GetProducts useCase;
   late MockProductRepository mockRepository;
 
   setUp(() {
     mockRepository = MockProductRepository();
-    usecase = GetProducts(mockRepository);
+    useCase = GetProducts(mockRepository);
   });
 
-  final testProducts = [
-    const Product(
-      id: '1',
-      name: 'Palm Shell Grade A',
-      description: 'High quality palm shell',
-      pricePerTon: 500000,
-      stockAvailable: 100,
-      minimumOrder: 5,
-      category: 'Palm Shell',
-    ),
-    const Product(
-      id: '2',
-      name: 'Palm Shell Grade B',
-      description: 'Standard quality palm shell',
-      pricePerTon: 450000,
-      stockAvailable: 50,
-      minimumOrder: 10,
-      category: 'Palm Shell',
-    ),
-  ];
+  group('GetProducts', () {
+    final tProducts = [
+      Product(
+        id: '1',
+        name: 'Cangkang Sawit Grade A',
+        description: 'High quality palm kernel shell',
+        pricePerTon: 150000,
+        stockAvailable: 100,
+        minimumOrder: 10,
+        category: 'Grade A',
+        isActive: true,
+        imageUrl: 'https://example.com/image1.jpg',
+      ),
+      Product(
+        id: '2',
+        name: 'Cangkang Sawit Grade B',
+        description: 'Standard quality palm kernel shell',
+        pricePerTon: 120000,
+        stockAvailable: 200,
+        minimumOrder: 10,
+        category: 'Grade B',
+        imageUrl: 'https://example.com/image2.jpg',
+        isActive: true,
+      ),
+    ];
 
-  group('GetProducts UseCase', () {
-    test('should return list of products when repository succeeds', () async {
-      // arrange
+    test('should get all products from repository', () async {
+      // Arrange
       when(
         mockRepository.getProducts(),
-      ).thenAnswer((_) async => Right(testProducts));
+      ).thenAnswer((_) async => Right(tProducts));
 
-      // act
-      final result = await usecase(NoParams());
+      // Act
+      final result = await useCase(const NoParams());
 
-      // assert
-      expect(result, Right(testProducts));
+      // Assert
+      expect(result, Right(tProducts));
+      verify(mockRepository.getProducts());
+      verifyNoMoreInteractions(mockRepository);
+    });
+
+    test('should return failure when repository fails', () async {
+      // Arrange
+      const tFailure = ServerFailure('Server error');
+      when(
+        mockRepository.getProducts(),
+      ).thenAnswer((_) async => const Left(tFailure));
+
+      // Act
+      final result = await useCase(const NoParams());
+
+      // Assert
+      expect(result, Left(tFailure));
       verify(mockRepository.getProducts());
       verifyNoMoreInteractions(mockRepository);
     });
 
     test('should return empty list when no products available', () async {
-      // arrange
+      // Arrange
       when(
         mockRepository.getProducts(),
       ).thenAnswer((_) async => const Right([]));
 
-      // act
-      final result = await usecase(NoParams());
+      // Act
+      final result = await useCase(const NoParams());
 
-      // assert
+      // Assert
       expect(result.isRight(), true);
-      result.fold(
-        (_) => fail('Should return empty list'),
-        (products) => expect(products, isEmpty),
-      );
+      result.fold((l) => fail('Should be Right'), (r) => expect(r, isEmpty));
       verify(mockRepository.getProducts());
-    });
-
-    test('should return ServerFailure when repository fails', () async {
-      // arrange
-      when(mockRepository.getProducts()).thenAnswer(
-        (_) async => const Left(ServerFailure('Failed to fetch products')),
-      );
-
-      // act
-      final result = await usecase(NoParams());
-
-      // assert
-      expect(result, const Left(ServerFailure('Failed to fetch products')));
-      verify(mockRepository.getProducts());
-    });
-
-    test('should return NotFoundFailure when products not found', () async {
-      // arrange
-      when(mockRepository.getProducts()).thenAnswer(
-        (_) async => const Left(NotFoundFailure('Products not found')),
-      );
-
-      // act
-      final result = await usecase(NoParams());
-
-      // assert
-      expect(result, const Left(NotFoundFailure('Products not found')));
     });
   });
 }

@@ -7,6 +7,7 @@ import '../../domain/usecases/confirm_order.dart';
 import '../../domain/usecases/create_order.dart';
 import '../../domain/usecases/get_order_by_id.dart';
 import '../../domain/usecases/get_orders.dart';
+import '../../domain/usecases/update_order_status.dart';
 import 'order_state.dart';
 
 /// StateNotifier for managing order state
@@ -16,6 +17,7 @@ class OrderNotifier extends StateNotifier<OrderState> {
   final CreateOrder createOrderUseCase;
   final ConfirmOrder confirmOrderUseCase;
   final CancelOrder cancelOrderUseCase;
+  final UpdateOrderStatus updateOrderStatusUseCase;
 
   OrderNotifier({
     required this.getOrdersUseCase,
@@ -23,6 +25,7 @@ class OrderNotifier extends StateNotifier<OrderState> {
     required this.createOrderUseCase,
     required this.confirmOrderUseCase,
     required this.cancelOrderUseCase,
+    required this.updateOrderStatusUseCase,
   }) : super(const OrderState());
 
   /// Load orders with optional filters
@@ -154,6 +157,36 @@ class OrderNotifier extends StateNotifier<OrderState> {
     );
   }
 
+  /// Update order status
+  Future<bool> updateStatus(String orderId, String status) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+
+    final result = await updateOrderStatusUseCase(
+      UpdateOrderStatusParams(orderId: orderId, status: status),
+    );
+
+    return result.fold(
+      (failure) {
+        state = state.copyWith(isLoading: false, errorMessage: failure.message);
+        return false;
+      },
+      (updatedOrder) {
+        // Update order in list
+        final updatedOrders = state.orders.map((order) {
+          return order.id == updatedOrder.id ? updatedOrder : order;
+        }).toList();
+
+        state = state.copyWith(
+          isLoading: false,
+          orders: updatedOrders,
+          selectedOrder: updatedOrder,
+          clearError: true,
+        );
+        return true;
+      },
+    );
+  }
+
   /// Clear selected order
   void clearSelectedOrder() {
     state = state.copyWith(clearSelectedOrder: true);
@@ -175,5 +208,6 @@ final orderNotifierProvider = StateNotifierProvider<OrderNotifier, OrderState>((
     createOrderUseCase: ref.read(createOrderUseCaseProvider),
     confirmOrderUseCase: ref.read(confirmOrderUseCaseProvider),
     cancelOrderUseCase: ref.read(cancelOrderUseCaseProvider),
+    updateOrderStatusUseCase: ref.read(updateOrderStatusUseCaseProvider),
   );
 });

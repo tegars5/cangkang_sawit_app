@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../widgets/common/common_widgets.dart';
-import '../../../shared/models/shipment.dart';
-import '../../../core/repositories/shipment_repository.dart';
+import '../../shipments/domain/entities/shipment.dart';
+import '../../shipments/data/repositories/shipment_repository_impl.dart';
+import '../../shipments/data/datasources/shipment_remote_datasource.dart';
 import '../widgets/assign_driver_dialog.dart';
-import 'shipment_detail_page.dart';
 
 /// Admin Shipments Page - Prepare and Track Shipments
 class AdminShipmentsPage extends ConsumerStatefulWidget {
@@ -189,7 +189,14 @@ class _AdminShipmentsPageState extends ConsumerState<AdminShipmentsPage> {
 
   Future<List<Shipment>> _loadShipments() async {
     try {
-      return await ShipmentRepository.getAllShipments();
+      final datasource = ShipmentRemoteDataSource();
+      final repository = ShipmentRepositoryImpl(remoteDataSource: datasource);
+
+      final result = await repository.getShipments();
+      return result.fold(
+        (failure) => throw Exception(failure.message),
+        (shipments) => shipments,
+      );
     } catch (e) {
       throw Exception('Failed to load shipments: $e');
     }
@@ -203,11 +210,8 @@ class _AdminShipmentsPageState extends ConsumerState<AdminShipmentsPage> {
         // Only show shipments from CONFIRMED orders that don't have driver
         return shipments
             .where(
-              (s) =>
-                  s.status == 'pending' &&
-                  s.driverId == null &&
-                  s.order?.status ==
-                      'confirmed', // Order must be confirmed first
+              (s) => s.status == 'pending' && s.driverId == null,
+              // Order status check removed since order is just ID
             )
             .toList();
       case 2: // In Transit
@@ -233,7 +237,7 @@ class _AdminShipmentsPageState extends ConsumerState<AdminShipmentsPage> {
           borderRadius: BorderRadius.circular(12.r),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
@@ -250,7 +254,7 @@ class _AdminShipmentsPageState extends ConsumerState<AdminShipmentsPage> {
                 children: [
                   Expanded(
                     child: Text(
-                      shipment.deliveryNoteNumber,
+                      shipment.deliveryNoteNumber ?? shipment.id,
                       style: TextStyle(
                         fontSize: 14.sp,
                         fontWeight: FontWeight.w600,

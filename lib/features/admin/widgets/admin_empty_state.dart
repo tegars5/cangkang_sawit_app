@@ -27,18 +27,11 @@ class AdminEmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 40.sp,
-              color: const Color(0xFF9E9E9E),
-            ),
+            Icon(icon, size: 40.sp, color: const Color(0xFF9E9E9E)),
             SizedBox(height: 12.h),
             Text(
               message,
-              style: TextStyle(
-                fontSize: 13.sp,
-                color: const Color(0xFF757575),
-              ),
+              style: TextStyle(fontSize: 13.sp, color: const Color(0xFF757575)),
               textAlign: TextAlign.center,
             ),
             if (actionText != null && onActionTap != null) ...[
@@ -61,10 +54,7 @@ class AdminEmptyState extends StatelessWidget {
     );
 
     if (useCard) {
-      return AdminCardContainer(
-        padding: EdgeInsets.zero,
-        child: content,
-      );
+      return AdminCardContainer(padding: EdgeInsets.zero, child: content);
     }
 
     return content;

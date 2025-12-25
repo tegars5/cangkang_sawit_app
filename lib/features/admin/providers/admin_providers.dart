@@ -1,426 +1,372 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../shared/models/models.dart';
-import '../../../shared/repositories/order_repository.dart';
-import '../../../shared/repositories/product_repository.dart';
-import '../../../core/services/supabase_service.dart';
+import 'package:flutter_riverpod/legacy.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../data/models/dashboard_stats_model.dart';
+import '../../orders/data/models/order_model.dart';
 
-/// Model untuk statistik dashboard
-class DashboardStats {
-  final int totalOrders;
-  final int activeShipments;
-  final int activePartners;
-  final double monthlyRevenue;
-  final double ordersTrend;
-  final double shipmentsTrend;
-  final double partnersTrend;
-  final double revenueTrend;
+// Tab index provider for admin navigation (using StateProvider for backward compatibility)
+final adminTabIndexProvider = StateProvider<int>((ref) => 0);
 
-  DashboardStats({
-    required this.totalOrders,
-    required this.activeShipments,
-    required this.activePartners,
-    required this.monthlyRevenue,
-    required this.ordersTrend,
-    required this.shipmentsTrend,
-    required this.partnersTrend,
-    required this.revenueTrend,
-  });
-
-  factory DashboardStats.empty() {
-    return DashboardStats(
-      totalOrders: 0,
-      activeShipments: 0,
-      activePartners: 0,
-      monthlyRevenue: 0,
-      ordersTrend: 0,
-      shipmentsTrend: 0,
-      partnersTrend: 0,
-      revenueTrend: 0,
-    );
-  }
-}
-
-/// Model untuk data chart pesanan mingguan
-class WeeklyOrderData {
-  final List<int> values;
-  final List<String> labels;
-
-  WeeklyOrderData({required this.values, required this.labels});
-
-  factory WeeklyOrderData.empty() {
-    return WeeklyOrderData(
-      values: [0, 0, 0, 0, 0, 0, 0],
-      labels: ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'],
-    );
-  }
-}
-
-/// Model untuk aktivitas terkini
-class DashboardActivity {
-  final String title;
-  final String subtitle;
-  final String time;
-  final String iconType;
-  final String colorType;
-
-  DashboardActivity({
-    required this.title,
-    required this.subtitle,
-    required this.time,
-    required this.iconType,
-    required this.colorType,
-  });
-}
-
-/// Provider untuk current admin tab index
-final adminTabIndexProvider = NotifierProvider<AdminTabIndexNotifier, int>(
-  AdminTabIndexNotifier.new,
-);
-
-class AdminTabIndexNotifier extends Notifier<int> {
-  @override
-  int build() => 0;
-
-  void setIndex(int index) {
-    state = index;
-  }
-}
-
-/// Provider untuk product repository instance
-final productRepositoryProvider = Provider<ProductRepository>((ref) {
-  return ProductRepository();
+// Supabase client provider
+final supabaseClientProvider = Provider<SupabaseClient>((ref) {
+  return Supabase.instance.client;
 });
 
-/// Provider untuk order repository instance
-final orderRepositoryProvider = Provider<OrderRepository>((ref) {
-  return OrderRepository();
-});
-
-/// Provider untuk fetching all products
-final productsProvider = FutureProvider<List<Product>>((ref) async {
-  final repo = ref.watch(productRepositoryProvider);
-  return await repo.getAllProducts();
-});
-
-/// AsyncNotifier untuk Product List dengan CRUD operations (Riverpod 3.0)
-class ProductListNotifier extends AsyncNotifier<List<Product>> {
-  late ProductRepository _repository;
-
-  @override
-  Future<List<Product>> build() async {
-    _repository = ref.watch(productRepositoryProvider);
-    return await _repository.getAllProducts();
-  }
-
-  Future<void> refresh() async {
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() => _repository.getAllProducts());
-  }
-
-  Future<void> createProduct({
-    required String name,
-    required double pricePerTon,
-    double? stockAvailable,
-  }) async {
-    await _repository.createProduct(
-      name: name,
-      pricePerTon: pricePerTon,
-      stockAvailable: stockAvailable ?? 0,
-    );
-    await refresh();
-  }
-
-  Future<void> updateProduct({
-    required String productId,
-    required String name,
-    required double pricePerTon,
-    double? stockAvailable,
-  }) async {
-    await _repository.updateProduct(
-      productId: productId,
-      name: name,
-      pricePerTon: pricePerTon,
-      stockAvailable: stockAvailable,
-    );
-    await refresh();
-  }
-
-  Future<void> deleteProduct(String productId) async {
-    await _repository.deleteProduct(productId);
-    await refresh();
-  }
-}
-
-/// Provider untuk product list dengan AsyncNotifier (Riverpod 3.0)
-final productListProvider =
-    AsyncNotifierProvider<ProductListNotifier, List<Product>>(
-      ProductListNotifier.new,
-    );
-
-/// Provider untuk dashboard statistics
-final dashboardStatsProvider = FutureProvider<DashboardStats>((ref) async {
-  try {
-    final supabase = SupabaseService.instance.client;
-    final now = DateTime.now();
-    final firstDayOfMonth = DateTime(now.year, now.month, 1);
-    final lastMonth = DateTime(now.year, now.month - 1, 1);
-    final lastDayOfLastMonth = DateTime(now.year, now.month, 0);
-
-    // Get total orders this month
-    final ordersThisMonth = await supabase
-        .from('orders')
-        .select('id, total_amount, created_at')
-        .gte('created_at', firstDayOfMonth.toIso8601String())
-        .lte('created_at', now.toIso8601String());
-
-    // Get orders last month for trend calculation
-    final ordersLastMonth = await supabase
-        .from('orders')
-        .select('id')
-        .gte('created_at', lastMonth.toIso8601String())
-        .lte('created_at', lastDayOfLastMonth.toIso8601String());
-
-    // Get active shipments (status: in_transit)
-    final activeShipments = await supabase
-        .from('shipments')
-        .select('id')
-        .eq('status', 'in_transit');
-
-    // Get shipments last month for trend
-    final shipmentsLastMonth = await supabase
-        .from('shipments')
-        .select('id')
-        .gte('created_at', lastMonth.toIso8601String())
-        .lte('created_at', lastDayOfLastMonth.toIso8601String())
-        .eq('status', 'in_transit');
-
-    // Get active partners (role_id = 2)
-    final activePartners = await supabase
-        .from('profiles')
-        .select('id, created_at')
-        .eq('role_id', 2);
-
-    // Get partners last month for trend
-    final partnersLastMonth = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('role_id', 2)
-        .gte('created_at', lastMonth.toIso8601String())
-        .lte('created_at', lastDayOfLastMonth.toIso8601String());
-
-    // Calculate monthly revenue
-    double monthlyRevenue = 0;
-    double lastMonthRevenue = 0;
-
-    for (var order in ordersThisMonth) {
-      final amount = order['total_amount'];
-      if (amount != null) {
-        monthlyRevenue += (amount is int)
-            ? amount.toDouble()
-            : amount as double;
-      }
-    }
-
-    // Get last month revenue for trend
-    final revenueLastMonth = await supabase
-        .from('orders')
-        .select('total_amount')
-        .gte('created_at', lastMonth.toIso8601String())
-        .lte('created_at', lastDayOfLastMonth.toIso8601String());
-
-    for (var order in revenueLastMonth) {
-      final amount = order['total_amount'];
-      if (amount != null) {
-        lastMonthRevenue += (amount is int)
-            ? amount.toDouble()
-            : amount as double;
-      }
-    }
-
-    // Calculate trends (percentage change from last month)
-    double calculateTrend(int current, int previous) {
-      if (previous == 0) return current > 0 ? 100.0 : 0.0;
-      return ((current - previous) / previous) * 100;
-    }
-
-    double calculateRevenueTrend(double current, double previous) {
-      if (previous == 0) return current > 0 ? 100.0 : 0.0;
-      return ((current - previous) / previous) * 100;
-    }
-
-    return DashboardStats(
-      totalOrders: ordersThisMonth.length,
-      activeShipments: activeShipments.length,
-      activePartners: activePartners.length,
-      monthlyRevenue: monthlyRevenue,
-      ordersTrend: calculateTrend(
-        ordersThisMonth.length,
-        ordersLastMonth.length,
-      ),
-      shipmentsTrend: calculateTrend(
-        activeShipments.length,
-        shipmentsLastMonth.length,
-      ),
-      partnersTrend: calculateTrend(
-        activePartners.length,
-        partnersLastMonth.length,
-      ),
-      revenueTrend: calculateRevenueTrend(monthlyRevenue, lastMonthRevenue),
-    );
-  } catch (e) {
-    throw Exception('Gagal memuat statistik dashboard: $e');
-  }
-});
-
-/// Provider untuk weekly order chart data
-final weeklyOrderDataProvider = FutureProvider<WeeklyOrderData>((ref) async {
-  try {
-    final supabase = SupabaseService.instance.client;
-    final now = DateTime.now();
-    final List<int> values = [];
-    final List<String> labels = [
-      'Sen',
-      'Sel',
-      'Rab',
-      'Kam',
-      'Jum',
-      'Sab',
-      'Min',
-    ];
-
-    // Get orders for last 7 days
-    for (int i = 6; i >= 0; i--) {
-      final date = now.subtract(Duration(days: i));
-      final startOfDay = DateTime(date.year, date.month, date.day);
-      final endOfDay = DateTime(date.year, date.month, date.day, 23, 59, 59);
-
-      final ordersCount = await supabase
-          .from('orders')
-          .select('id')
-          .gte('created_at', startOfDay.toIso8601String())
-          .lte('created_at', endOfDay.toIso8601String());
-
-      values.add(ordersCount.length);
-    }
-
-    return WeeklyOrderData(values: values, labels: labels);
-  } catch (e) {
-    throw Exception('Gagal memuat data chart: $e');
-  }
-});
-
-/// Provider untuk recent orders (3 terakhir)
-final recentOrdersProvider = FutureProvider<List<Order>>((ref) async {
-  try {
-    final orderRepo = ref.watch(orderRepositoryProvider);
-    final allOrders = await orderRepo.getOrders();
-
-    // Sort by created_at descending and take first 3
-    allOrders.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    return allOrders.take(3).toList();
-  } catch (e) {
-    throw Exception('Gagal memuat pesanan terbaru: $e');
-  }
-});
-
-/// Provider untuk recent activities
-final recentActivitiesProvider = FutureProvider<List<DashboardActivity>>((
+// Dashboard stats provider
+final dashboardStatsProvider = FutureProvider<DashboardStatsModel?>((
   ref,
 ) async {
+  final supabase = ref.read(supabaseClientProvider);
+
   try {
-    final supabase = SupabaseService.instance.client;
-    final List<DashboardActivity> activities = [];
+    // Fetch total orders count
+    final ordersCount = await supabase.rpc('count_orders');
+    final totalOrders = (ordersCount as num?)?.toInt() ?? 0;
 
-    // Get recent orders (last 5)
-    final recentOrders = await supabase
-        .from('orders')
-        .select('id, order_number, created_at, profiles:customer_id(full_name)')
-        .order('created_at', ascending: false)
-        .limit(2);
+    // Fetch orders by status
+    final pendingCount = await supabase.rpc(
+      'count_orders_by_status',
+      params: {'status_param': 'pending'},
+    );
+    final confirmedCount = await supabase.rpc(
+      'count_orders_by_status',
+      params: {'status_param': 'confirmed'},
+    );
+    final shippedCount = await supabase.rpc(
+      'count_orders_by_status',
+      params: {'status_param': 'shipped'},
+    );
+    final completedCount = await supabase.rpc(
+      'count_orders_by_status',
+      params: {'status_param': 'completed'},
+    );
+    final cancelledCount = await supabase.rpc(
+      'count_orders_by_status',
+      params: {'status_param': 'cancelled'},
+    );
 
-    for (var order in recentOrders) {
-      final customerName = order['profiles']?['full_name'] ?? 'Unknown';
-      final orderNumber = order['order_number'] ?? 'N/A';
-      final createdAt = DateTime.parse(order['created_at']);
-      final timeAgo = _getTimeAgo(createdAt);
-
-      activities.add(
-        DashboardActivity(
-          title: 'Pesanan baru diterima',
-          subtitle: '$customerName - $orderNumber',
-          time: timeAgo,
-          iconType: 'new_order',
-          colorType: 'blue',
-        ),
-      );
-    }
-
-    // Get recent shipments
-    final recentShipments = await supabase
+    // Fetch shipments and drivers
+    final shipmentsResponse = await supabase
         .from('shipments')
-        .select('id, tracking_number, created_at, status')
-        .eq('status', 'in_transit')
-        .order('created_at', ascending: false)
-        .limit(1);
+        .select('id')
+        .not('status', 'in', '(delivered,cancelled)');
+    final activeShipments = (shipmentsResponse as List).length;
 
-    for (var shipment in recentShipments) {
-      final trackingNumber = shipment['tracking_number'] ?? 'N/A';
-      final createdAt = DateTime.parse(shipment['created_at']);
-      final timeAgo = _getTimeAgo(createdAt);
-
-      activities.add(
-        DashboardActivity(
-          title: 'Pengiriman dimulai',
-          subtitle: 'Tracking: $trackingNumber',
-          time: timeAgo,
-          iconType: 'shipment',
-          colorType: 'orange',
-        ),
-      );
-    }
-
-    // Get recent partners
-    final recentPartners = await supabase
+    final driversResponse = await supabase
         .from('profiles')
-        .select('id, full_name, created_at')
-        .eq('role_id', 2)
-        .order('created_at', ascending: false)
-        .limit(1);
+        .select('id')
+        .eq('role', 'driver')
+        .eq('is_active', true);
+    final activeDrivers = (driversResponse as List).length;
 
-    for (var partner in recentPartners) {
-      final name = partner['full_name'] ?? 'Unknown';
-      final createdAt = DateTime.parse(partner['created_at']);
-      final timeAgo = _getTimeAgo(createdAt);
+    final allDriversResponse = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('role', 'driver');
+    final totalDrivers = (allDriversResponse as List).length;
 
-      activities.add(
-        DashboardActivity(
-          title: 'Mitra baru terdaftar',
-          subtitle: name,
-          time: timeAgo,
-          iconType: 'new_partner',
-          colorType: 'purple',
-        ),
-      );
+    final partnersResponse = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('role', 'mitra')
+        .eq('is_active', true);
+    final activePartners = (partnersResponse as List).length;
+
+    final allPartnersResponse = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('role', 'mitra');
+    final totalPartners = (allPartnersResponse as List).length;
+
+    // Fetch revenue
+    final revenueResponse = await supabase
+        .from('orders')
+        .select('total_price')
+        .eq('status', 'completed');
+
+    double totalRevenue = 0;
+    double monthlyRevenue = 0;
+    double weeklyRevenue = 0;
+    double dailyRevenue = 0;
+
+    for (var order in revenueResponse) {
+      totalRevenue += (order['total_price'] as num?)?.toDouble() ?? 0;
     }
 
-    return activities;
+    // Get monthly revenue (last 30 days)
+    final now = DateTime.now();
+    final monthAgo = now.subtract(const Duration(days: 30));
+    final monthlyResponse = await supabase
+        .from('orders')
+        .select('total_price')
+        .eq('status', 'completed')
+        .gte('created_at', monthAgo.toIso8601String());
+
+    for (var order in monthlyResponse) {
+      monthlyRevenue += (order['total_price'] as num?)?.toDouble() ?? 0;
+    }
+
+    // Get weekly revenue (last 7 days)
+    final weekAgo = now.subtract(const Duration(days: 7));
+    final weeklyResponse = await supabase
+        .from('orders')
+        .select('total_price')
+        .eq('status', 'completed')
+        .gte('created_at', weekAgo.toIso8601String());
+
+    for (var order in weeklyResponse) {
+      weeklyRevenue += (order['total_price'] as num?)?.toDouble() ?? 0;
+    }
+
+    // Get daily revenue (today)
+    final today = DateTime(now.year, now.month, now.day);
+    final dailyResponse = await supabase
+        .from('orders')
+        .select('total_price')
+        .eq('status', 'completed')
+        .gte('created_at', today.toIso8601String());
+
+    for (var order in dailyResponse) {
+      dailyRevenue += (order['total_price'] as num?)?.toDouble() ?? 0;
+    }
+
+    return DashboardStatsModel(
+      totalOrders: totalOrders,
+      pendingOrders: (pendingCount as num?)?.toInt() ?? 0,
+      confirmedOrders: (confirmedCount as num?)?.toInt() ?? 0,
+      shippedOrders: (shippedCount as num?)?.toInt() ?? 0,
+      completedOrders: (completedCount as num?)?.toInt() ?? 0,
+      cancelledOrders: (cancelledCount as num?)?.toInt() ?? 0,
+      activeShipments: activeShipments,
+      activeDrivers: activeDrivers,
+      totalDrivers: totalDrivers,
+      activePartners: activePartners,
+      totalPartners: totalPartners,
+      totalRevenue: totalRevenue,
+      monthlyRevenue: monthlyRevenue,
+      weeklyRevenue: weeklyRevenue,
+      dailyRevenue: dailyRevenue,
+      ordersTrend: 0.0,
+      revenueTrend: 0.0,
+      shipmentsTrend: 0.0,
+      partnersTrend: 0.0,
+      lastUpdated: DateTime.now(),
+    );
   } catch (e) {
-    throw Exception('Gagal memuat aktivitas terkini: $e');
+    // Return zero stats on error
+    return DashboardStatsModel(
+      totalOrders: 0,
+      pendingOrders: 0,
+      confirmedOrders: 0,
+      shippedOrders: 0,
+      completedOrders: 0,
+      cancelledOrders: 0,
+      activeShipments: 0,
+      activeDrivers: 0,
+      totalDrivers: 0,
+      activePartners: 0,
+      totalPartners: 0,
+      totalRevenue: 0,
+      monthlyRevenue: 0,
+      weeklyRevenue: 0,
+      dailyRevenue: 0,
+      ordersTrend: 0.0,
+      revenueTrend: 0.0,
+      shipmentsTrend: 0.0,
+      partnersTrend: 0.0,
+      lastUpdated: DateTime.now(),
+    );
   }
 });
 
-/// Helper function to calculate time ago
-String _getTimeAgo(DateTime dateTime) {
-  final now = DateTime.now();
-  final difference = now.difference(dateTime);
+// Weekly order data model
+class WeeklyOrderData {
+  final String day;
+  final int orders;
 
-  if (difference.inDays > 0) {
-    return '${difference.inDays} hari lalu';
-  } else if (difference.inHours > 0) {
-    return '${difference.inHours} jam lalu';
-  } else if (difference.inMinutes > 0) {
-    return '${difference.inMinutes} menit lalu';
-  } else {
-    return 'Baru saja';
+  const WeeklyOrderData({required this.day, required this.orders});
+}
+
+// Weekly order data provider
+final weeklyOrderDataProvider = FutureProvider<List<WeeklyOrderData>>((
+  ref,
+) async {
+  final supabase = ref.read(supabaseClientProvider);
+
+  try {
+    // Get orders from last 7 days
+    final now = DateTime.now();
+    final sevenDaysAgo = now.subtract(const Duration(days: 7));
+
+    final response = await supabase
+        .from('orders')
+        .select('created_at')
+        .gte('created_at', sevenDaysAgo.toIso8601String());
+
+    // Group by day
+    final Map<String, int> dayCount = {
+      'Mon': 0,
+      'Tue': 0,
+      'Wed': 0,
+      'Thu': 0,
+      'Fri': 0,
+      'Sat': 0,
+      'Sun': 0,
+    };
+
+    for (var order in response) {
+      final createdAt = DateTime.parse(order['created_at'] as String);
+      final dayName = _getDayName(createdAt.weekday);
+      dayCount[dayName] = (dayCount[dayName] ?? 0) + 1;
+    }
+
+    return dayCount.entries
+        .map((e) => WeeklyOrderData(day: e.key, orders: e.value))
+        .toList();
+  } catch (e) {
+    // Return empty data on error
+    return [
+      const WeeklyOrderData(day: 'Mon', orders: 0),
+      const WeeklyOrderData(day: 'Tue', orders: 0),
+      const WeeklyOrderData(day: 'Wed', orders: 0),
+      const WeeklyOrderData(day: 'Thu', orders: 0),
+      const WeeklyOrderData(day: 'Fri', orders: 0),
+      const WeeklyOrderData(day: 'Sat', orders: 0),
+      const WeeklyOrderData(day: 'Sun', orders: 0),
+    ];
+  }
+});
+
+String _getDayName(int weekday) {
+  switch (weekday) {
+    case 1:
+      return 'Mon';
+    case 2:
+      return 'Tue';
+    case 3:
+      return 'Wed';
+    case 4:
+      return 'Thu';
+    case 5:
+      return 'Fri';
+    case 6:
+      return 'Sat';
+    case 7:
+      return 'Sun';
+    default:
+      return 'Mon';
   }
 }
+
+// Recent orders provider
+final recentOrdersProvider = FutureProvider<List<OrderModel>>((ref) async {
+  final supabase = ref.read(supabaseClientProvider);
+
+  try {
+    final response = await supabase
+        .from('orders')
+        .select('''
+          *,
+          profiles:customer_id(*)
+        ''')
+        .order('created_at', ascending: false)
+        .limit(10);
+
+    return response.map((json) => OrderModel.fromJson(json)).toList();
+  } catch (e) {
+    return [];
+  }
+});
+
+// Recent activities model
+class RecentActivity {
+  final String id;
+  final String title;
+  final String description;
+  final DateTime timestamp;
+  final String type; // 'order', 'delivery', 'user', etc.
+
+  const RecentActivity({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.timestamp,
+    required this.type,
+  });
+}
+
+// Recent activities provider
+final recentActivitiesProvider = FutureProvider<List<RecentActivity>>((
+  ref,
+) async {
+  final supabase = ref.read(supabaseClientProvider);
+
+  try {
+    // Fetch recent order activities
+    final ordersResponse = await supabase
+        .from('orders')
+        .select('id, status, created_at, updated_at')
+        .order('updated_at', ascending: false)
+        .limit(5);
+
+    // Fetch recent shipment activities
+    final shipmentsResponse = await supabase
+        .from('shipments')
+        .select('id, status, updated_at')
+        .order('updated_at', ascending: false)
+        .limit(5);
+
+    List<RecentActivity> activities = [];
+
+    // Add order activities
+    for (var order in ordersResponse) {
+      activities.add(
+        RecentActivity(
+          id: order['id'] as String,
+          title: 'Order ${order['status']}',
+          description:
+              'Order ${order['id'].toString().substring(0, 8)}... updated',
+          timestamp: DateTime.parse(order['updated_at'] as String),
+          type: 'order',
+        ),
+      );
+    }
+
+    // Add shipment activities
+    for (var shipment in shipmentsResponse) {
+      activities.add(
+        RecentActivity(
+          id: shipment['id'] as String,
+          title: 'Shipment ${shipment['status']}',
+          description:
+              'Shipment ${shipment['id'].toString().substring(0, 8)}... updated',
+          timestamp: DateTime.parse(shipment['updated_at'] as String),
+          type: 'delivery',
+        ),
+      );
+    }
+
+    // Sort by timestamp
+    activities.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+
+    return activities.take(10).toList();
+  } catch (e) {
+    return [];
+  }
+});
+
+// Product list provider
+final productListProvider = FutureProvider<List<dynamic>>((ref) async {
+  final supabase = ref.read(supabaseClientProvider);
+
+  try {
+    final response = await supabase
+        .from('products')
+        .select('*')
+        .order('created_at', ascending: false);
+
+    return response;
+  } catch (e) {
+    return [];
+  }
+});

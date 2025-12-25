@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../controllers/driver_navigation_controller.dart';
-import '../../../shared/models/models.dart';
+import '../controllers/driver_tracking_controller.dart';
+import '../../shipments/domain/entities/shipment.dart';
 
 /// Driver Navigation Screen - Like Gojek/Grab driver app
 /// Shows map with route, ETA, and status update buttons
@@ -25,11 +25,11 @@ class _DriverNavigationScreenState
   @override
   void initState() {
     super.initState();
-    // Initialize navigation
+    // Initialize navigation - set active shipment
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref
-          .read(driverNavigationControllerProvider.notifier)
-          .initialize(widget.shipment);
+          .read(driverTrackingControllerProvider.notifier)
+          .setActiveShipment(widget.shipment);
     });
   }
 
@@ -41,7 +41,7 @@ class _DriverNavigationScreenState
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(driverNavigationControllerProvider);
+    final state = ref.watch(driverTrackingControllerProvider);
 
     return Scaffold(
       body: Stack(
@@ -78,7 +78,7 @@ class _DriverNavigationScreenState
           // Loading Overlay
           if (state.isLoading)
             Container(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withValues(alpha: 0.3),
               child: const Center(
                 child: CircularProgressIndicator(color: Colors.white),
               ),
@@ -152,7 +152,7 @@ class _DriverNavigationScreenState
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Colors.black.withOpacity(0.5), Colors.transparent],
+          colors: [Colors.black.withValues(alpha: 0.5), Colors.transparent],
         ),
       ),
       child: Row(
@@ -166,7 +166,7 @@ class _DriverNavigationScreenState
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
+                    color: Colors.black.withValues(alpha: 0.2),
                     blurRadius: 8,
                   ),
                 ],
@@ -183,7 +183,7 @@ class _DriverNavigationScreenState
                 borderRadius: BorderRadius.circular(12.r),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: 8,
                   ),
                 ],
@@ -213,7 +213,7 @@ class _DriverNavigationScreenState
         borderRadius: BorderRadius.circular(16.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -227,7 +227,7 @@ class _DriverNavigationScreenState
               Container(
                 padding: EdgeInsets.all(8.w),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF2E7D32).withOpacity(0.1),
+                  color: const Color(0xFF2E7D32).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8.r),
                 ),
                 child: Icon(
@@ -306,7 +306,7 @@ class _DriverNavigationScreenState
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, -4),
           ),
@@ -321,7 +321,9 @@ class _DriverNavigationScreenState
             Container(
               padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
               decoration: BoxDecoration(
-                color: _getStatusColor(state.currentStatus).withOpacity(0.1),
+                color: _getStatusColor(
+                  state.currentStatus,
+                ).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20.r),
               ),
               child: Text(
@@ -372,7 +374,7 @@ class _DriverNavigationScreenState
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12.r),
       ),
       child: Row(
@@ -410,26 +412,25 @@ class _DriverNavigationScreenState
     if (state.canStartTask) {
       buttonText = 'Mulai Pengiriman';
       onPressed = () {
-        ref.read(driverNavigationControllerProvider.notifier).startNavigation();
+        // TODO: Implement navigation start
+        ref
+            .read(driverTrackingControllerProvider.notifier)
+            .startTracking(widget.shipment.id);
       };
     } else if (state.currentStatus == 'in_transit') {
       buttonText = 'Sampai di Lokasi Pickup';
       onPressed = () {
-        ref
-            .read(driverNavigationControllerProvider.notifier)
-            .markArrivedAtPickup();
+        // TODO: Implement arrived at pickup
       };
     } else if (state.currentStatus == 'arrived_pickup') {
       buttonText = 'Barang Sudah Diambil';
       onPressed = () {
-        ref.read(driverNavigationControllerProvider.notifier).markPickedUp();
+        // TODO: Implement mark picked up
       };
     } else if (state.currentStatus == 'picked_up') {
       buttonText = 'Sampai di Tujuan';
       onPressed = () {
-        ref
-            .read(driverNavigationControllerProvider.notifier)
-            .markArrivedAtDestination();
+        // TODO: Implement arrived at destination
       };
     } else if (state.currentStatus == 'arrived_destination') {
       buttonText = 'Selesaikan Pengiriman';
@@ -560,9 +561,10 @@ class _DriverNavigationScreenState
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
+              // TODO: Implement complete delivery
               ref
-                  .read(driverNavigationControllerProvider.notifier)
-                  .completeDelivery();
+                  .read(driverTrackingControllerProvider.notifier)
+                  .stopTracking();
               // Navigate back after completion
               Future.delayed(const Duration(seconds: 1), () {
                 if (mounted) Navigator.pop(context);

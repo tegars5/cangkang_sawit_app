@@ -6,9 +6,10 @@
 import 'dart:async' as _i4;
 
 import 'package:cangkang_sawit_app/core/error/failures.dart' as _i5;
+import 'package:cangkang_sawit_app/features/auth/domain/entities/user.dart'
+    as _i6;
 import 'package:cangkang_sawit_app/features/auth/domain/repositories/auth_repository.dart'
     as _i3;
-import 'package:cangkang_sawit_app/shared/models/user_profile.dart' as _i6;
 import 'package:dartz/dartz.dart' as _i2;
 import 'package:mockito/mockito.dart' as _i1;
 
@@ -41,27 +42,26 @@ class MockAuthRepository extends _i1.Mock implements _i3.AuthRepository {
   }
 
   @override
-  _i4.Future<_i2.Either<_i5.Failure, _i6.UserProfile>> login({
+  _i4.Future<_i2.Either<_i5.Failure, _i6.User>> login({
     required String? email,
     required String? password,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#login, [], {#email: email, #password: password}),
-            returnValue:
-                _i4.Future<_i2.Either<_i5.Failure, _i6.UserProfile>>.value(
-                  _FakeEither_0<_i5.Failure, _i6.UserProfile>(
-                    this,
-                    Invocation.method(#login, [], {
-                      #email: email,
-                      #password: password,
-                    }),
-                  ),
-                ),
+            returnValue: _i4.Future<_i2.Either<_i5.Failure, _i6.User>>.value(
+              _FakeEither_0<_i5.Failure, _i6.User>(
+                this,
+                Invocation.method(#login, [], {
+                  #email: email,
+                  #password: password,
+                }),
+              ),
+            ),
           )
-          as _i4.Future<_i2.Either<_i5.Failure, _i6.UserProfile>>);
+          as _i4.Future<_i2.Either<_i5.Failure, _i6.User>>);
 
   @override
-  _i4.Future<_i2.Either<_i5.Failure, _i6.UserProfile>> register({
+  _i4.Future<_i2.Either<_i5.Failure, _i6.User>> register({
     required String? email,
     required String? password,
     required String? name,
@@ -76,21 +76,20 @@ class MockAuthRepository extends _i1.Mock implements _i3.AuthRepository {
               #role: role,
               #additionalData: additionalData,
             }),
-            returnValue:
-                _i4.Future<_i2.Either<_i5.Failure, _i6.UserProfile>>.value(
-                  _FakeEither_0<_i5.Failure, _i6.UserProfile>(
-                    this,
-                    Invocation.method(#register, [], {
-                      #email: email,
-                      #password: password,
-                      #name: name,
-                      #role: role,
-                      #additionalData: additionalData,
-                    }),
-                  ),
-                ),
+            returnValue: _i4.Future<_i2.Either<_i5.Failure, _i6.User>>.value(
+              _FakeEither_0<_i5.Failure, _i6.User>(
+                this,
+                Invocation.method(#register, [], {
+                  #email: email,
+                  #password: password,
+                  #name: name,
+                  #role: role,
+                  #additionalData: additionalData,
+                }),
+              ),
+            ),
           )
-          as _i4.Future<_i2.Either<_i5.Failure, _i6.UserProfile>>);
+          as _i4.Future<_i2.Either<_i5.Failure, _i6.User>>);
 
   @override
   _i4.Future<_i2.Either<_i5.Failure, void>> logout() =>
@@ -106,21 +105,20 @@ class MockAuthRepository extends _i1.Mock implements _i3.AuthRepository {
           as _i4.Future<_i2.Either<_i5.Failure, void>>);
 
   @override
-  _i4.Future<_i2.Either<_i5.Failure, _i6.UserProfile?>> getCurrentUser() =>
+  _i4.Future<_i2.Either<_i5.Failure, _i6.User?>> getCurrentUser() =>
       (super.noSuchMethod(
             Invocation.method(#getCurrentUser, []),
-            returnValue:
-                _i4.Future<_i2.Either<_i5.Failure, _i6.UserProfile?>>.value(
-                  _FakeEither_0<_i5.Failure, _i6.UserProfile?>(
-                    this,
-                    Invocation.method(#getCurrentUser, []),
-                  ),
-                ),
+            returnValue: _i4.Future<_i2.Either<_i5.Failure, _i6.User?>>.value(
+              _FakeEither_0<_i5.Failure, _i6.User?>(
+                this,
+                Invocation.method(#getCurrentUser, []),
+              ),
+            ),
           )
-          as _i4.Future<_i2.Either<_i5.Failure, _i6.UserProfile?>>);
+          as _i4.Future<_i2.Either<_i5.Failure, _i6.User?>>);
 
   @override
-  _i4.Future<_i2.Either<_i5.Failure, _i6.UserProfile>> updateProfile({
+  _i4.Future<_i2.Either<_i5.Failure, _i6.User>> updateProfile({
     required String? userId,
     required Map<String, dynamic>? updates,
   }) =>
@@ -129,16 +127,15 @@ class MockAuthRepository extends _i1.Mock implements _i3.AuthRepository {
               #userId: userId,
               #updates: updates,
             }),
-            returnValue:
-                _i4.Future<_i2.Either<_i5.Failure, _i6.UserProfile>>.value(
-                  _FakeEither_0<_i5.Failure, _i6.UserProfile>(
-                    this,
-                    Invocation.method(#updateProfile, [], {
-                      #userId: userId,
-                      #updates: updates,
-                    }),
-                  ),
-                ),
+            returnValue: _i4.Future<_i2.Either<_i5.Failure, _i6.User>>.value(
+              _FakeEither_0<_i5.Failure, _i6.User>(
+                this,
+                Invocation.method(#updateProfile, [], {
+                  #userId: userId,
+                  #updates: updates,
+                }),
+              ),
+            ),
           )
-          as _i4.Future<_i2.Either<_i5.Failure, _i6.UserProfile>>);
+          as _i4.Future<_i2.Either<_i5.Failure, _i6.User>>);
 }

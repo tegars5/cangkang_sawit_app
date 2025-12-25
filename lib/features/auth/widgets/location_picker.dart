@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 
 /// Location picker widget with Google Maps and auto-detect current location
@@ -26,7 +25,6 @@ class LocationPickerState extends State<LocationPicker> {
   late Set<Marker> _markers;
   GoogleMapController? _mapController;
   String _selectedAddress = 'Memuat alamat...';
-  bool _isLoadingLocation = false;
 
   @override
   void initState() {
@@ -130,61 +128,6 @@ class LocationPickerState extends State<LocationPicker> {
     });
     widget.onLocationChanged(location);
     _getAddressFromLatLng(location);
-  }
-
-  Future<void> _getCurrentLocation() async {
-    setState(() {
-      _isLoadingLocation = true;
-    });
-
-    try {
-      // Check permission
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          throw 'Izin lokasi ditolak';
-        }
-      }
-
-      if (permission == LocationPermission.deniedForever) {
-        throw 'Izin lokasi ditolak permanen. Silakan aktifkan di pengaturan.';
-      }
-
-      // Get current position
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-
-      LatLng currentLocation = LatLng(position.latitude, position.longitude);
-
-      setState(() {
-        _selectedLocation = currentLocation;
-        _selectedAddress = 'Memuat alamat...';
-        _updateMarker();
-      });
-
-      // Animate camera to current location
-      _mapController?.animateCamera(
-        CameraUpdate.newLatLngZoom(currentLocation, 15),
-      );
-
-      widget.onLocationChanged(currentLocation);
-      await _getAddressFromLatLng(currentLocation);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal mendapatkan lokasi: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      setState(() {
-        _isLoadingLocation = false;
-      });
-    }
   }
 
   @override

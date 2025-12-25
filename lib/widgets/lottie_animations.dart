@@ -173,7 +173,7 @@ class _LottieSuccessDialogState extends State<LottieSuccessDialog>
         border: Border.all(color: Colors.green[200]!, width: 2.w),
         boxShadow: [
           BoxShadow(
-            color: Colors.green.withOpacity(0.3),
+            color: Colors.green.withValues(alpha: 0.3),
             blurRadius: 20.r,
             spreadRadius: 2.r,
           ),
