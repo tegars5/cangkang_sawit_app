@@ -83,7 +83,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           } else if (roleId == 2) {
             // Mitra Bisnis
             return AppRouter.productCatalog;
-          } else if (roleId == 12) {
+          } else if (roleId == 3) {
             // Driver/Logistik
             return AppRouter.driverDeliveries;
           }

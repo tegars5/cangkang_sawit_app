@@ -23,6 +23,8 @@ CREATE TABLE public.driver_locations (
   accuracy numeric,
   speed numeric,
   heading numeric,
+  battery_level integer CHECK (battery_level >= 0 AND battery_level <= 100),
+  is_online boolean DEFAULT true,
   CONSTRAINT driver_locations_pkey PRIMARY KEY (id),
   CONSTRAINT driver_locations_shipment_id_fkey FOREIGN KEY (shipment_id) REFERENCES public.shipments(id),
   CONSTRAINT driver_locations_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.profiles(id)
@@ -83,6 +85,11 @@ CREATE TABLE public.orders (
   completed_at timestamp with time zone,
   confirmed_at timestamp with time zone,
   notes text,
+  payment_method character varying,
+  payment_status character varying DEFAULT 'unpaid'::character varying CHECK (payment_status::text = ANY (ARRAY['unpaid'::character varying, 'partial'::character varying, 'paid'::character varying, 'refunded'::character varying]::text[])),
+  payment_date timestamp with time zone,
+  cancelled_at timestamp with time zone,
+  cancellation_reason text,
   CONSTRAINT orders_pkey PRIMARY KEY (id),
   CONSTRAINT orders_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES public.profiles(id)
 );
@@ -99,6 +106,9 @@ CREATE TABLE public.products (
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   unit character varying DEFAULT 'ton'::character varying,
+  image_url text,
+  specifications jsonb,
+  max_order_quantity integer,
   CONSTRAINT products_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.profiles (
@@ -146,9 +156,9 @@ CREATE TABLE public.shipment_timeline (
 CREATE TABLE public.shipments (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   order_id uuid NOT NULL,
-  driver_id uuid NOT NULL,
+  driver_id uuid,
   delivery_note_number character varying NOT NULL UNIQUE,
-  status character varying DEFAULT 'pending'::character varying CHECK (status::text = ANY (ARRAY['pending'::character varying, 'in_transit'::character varying, 'arrived'::character varying, 'completed'::character varying]::text[])),
+  status character varying DEFAULT 'pending'::character varying CHECK (status::text = ANY (ARRAY['pending'::character varying::text, 'assigned'::character varying::text, 'in_transit'::character varying::text, 'arrived'::character varying::text, 'completed'::character varying::text, 'cancelled'::character varying::text])),
   destination_lat double precision,
   destination_lng double precision,
   created_at timestamp with time zone DEFAULT now(),
@@ -163,6 +173,11 @@ CREATE TABLE public.shipments (
   estimated_arrival timestamp with time zone,
   actual_delivery timestamp with time zone,
   tracking_number character varying,
+  pickup_photo text,
+  delivery_photo text,
+  signature_url text,
+  distance_km numeric,
+  fuel_cost numeric,
   CONSTRAINT shipments_pkey PRIMARY KEY (id),
   CONSTRAINT shipments_order_id_fkey FOREIGN KEY (order_id) REFERENCES public.orders(id),
   CONSTRAINT shipments_driver_id_fkey FOREIGN KEY (driver_id) REFERENCES public.profiles(id)

@@ -8,7 +8,7 @@ enum UserRole {
   mitra(2, 'Mitra Bisnis'),
 
   /// Driver/Logistik role (role_id = 3)
-  driver(12, 'Driver');
+  driver(3, 'Driver');
 
   const UserRole(this.id, this.displayName);
 

@@ -60,7 +60,7 @@ class User extends Equatable {
   bool get isMitra => roleId == 2 || roleId == 11;
 
   /// Check if user is driver
-  bool get isDriver => roleId == 3 || roleId == 12;
+  bool get isDriver => roleId == 3;
 
   /// Get role display name
   String get roleDisplayName {

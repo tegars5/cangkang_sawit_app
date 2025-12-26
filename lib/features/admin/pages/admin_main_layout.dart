@@ -22,7 +22,7 @@ class AdminMainLayout extends ConsumerWidget {
       const AdminOrdersPage(), // 1
       const AdminShipmentsPage(), // 2 - Center FAB
       const AdminProductsPage(), // 3
-      const AdminSettingsPage(), // 4
+      const LoginPage(), // 4 - Settings/Logout
     ];
 
     return Scaffold(

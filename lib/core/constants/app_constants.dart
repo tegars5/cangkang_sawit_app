@@ -17,7 +17,7 @@ class AppConstants {
   // Role IDs sesuai dengan database
   static const int adminRoleId = 1;
   static const int mitraBisnisRoleId = 2;
-  static const int logistikRoleId = 12;
+  static const int logistikRoleId = 3;
 
   // Status Pesanan
   static const String statusPesananBaru = 'Baru';
