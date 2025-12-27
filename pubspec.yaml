@@ -40,7 +40,7 @@ dependencies:
   state_notifier: ^1.0.0
 
   # Supabase Integration
-  supabase_flutter: ^2.10.3
+  supabase_flutter: ^2.11.0 # Updated to latest version
 
   # Routing
   go_router: ^14.6.2

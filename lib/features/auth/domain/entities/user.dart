@@ -57,7 +57,7 @@ class User extends Equatable {
   bool get isAdmin => roleId == 1;
 
   /// Check if user is mitra (customer)
-  bool get isMitra => roleId == 2 || roleId == 11;
+  bool get isMitra => roleId == 2;
 
   /// Check if user is driver
   bool get isDriver => roleId == 3;
@@ -69,10 +69,8 @@ class User extends Equatable {
       case 1:
         return 'Admin';
       case 2:
-      case 11:
-        return 'Mitra';
+        return 'Mitra Bisnis';
       case 3:
-      case 12:
         return 'Driver';
       default:
         return 'Unknown';

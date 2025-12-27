@@ -24,15 +24,36 @@ class AuthRemoteDataSource {
         throw const AppAuthException('Login failed');
       }
 
-      // Get user profile
-      final profileData = await _client
-          .from('profiles')
-          .select()
-          .eq('id', response.user!.id)
-          .single();
+      print('🔐 Auth success! User ID: ${response.user!.id}');
 
-      return UserProfile.fromJson(profileData);
+      // Get user profile with explicit columns
+      try {
+        print('📊 Querying profile...');
+        final profileData = await _client
+            .from('profiles')
+            .select(
+              'id, email, full_name, role_id, phone, address, is_active, '
+              'avatar_url, city, province, postal_code, driver_license, '
+              'vehicle_type, vehicle_plate, company_name, job_title, '
+              'latitude, longitude, created_at, updated_at',
+            )
+            .eq('id', response.user!.id)
+            .single();
+
+        print('✅ Profile fetched: ${profileData['email']}');
+        print('👤 Role ID: ${profileData['role_id']}');
+
+        return UserProfile.fromJson(profileData);
+      } on PostgrestException catch (e) {
+        print('❌ PostgrestException: ${e.code} - ${e.message}');
+        print('📋 Details: ${e.details}');
+        throw ServerException('Gagal mengambil profil: ${e.message}');
+      } catch (e) {
+        print('❌ Unexpected profile error: $e');
+        rethrow;
+      }
     } on AuthException catch (e) {
+      print('❌ AuthException: ${e.message}');
       // Handle specific Supabase auth errors with user-friendly messages
       if (e.message.contains('Invalid login credentials') ||
           e.message.contains('invalid') ||
@@ -44,8 +65,11 @@ class AuthRemoteDataSource {
       }
       throw AppAuthException(e.message);
     } on PostgrestException catch (e) {
+      print('❌ PostgrestException (outer): ${e.code} - ${e.message}');
       throw ServerException('Failed to get profile: ${e.message}');
     } catch (e) {
+      print('❌ Unexpected error: $e');
+      print('Stack trace: ${StackTrace.current}');
       throw AppAuthException('Login failed: $e');
     }
   }
@@ -81,7 +105,12 @@ class AuthRemoteDataSource {
       try {
         final profileData = await _client
             .from('profiles')
-            .select()
+            .select(
+              'id, email, full_name, role_id, phone, address, is_active, '
+              'avatar_url, city, province, postal_code, driver_license, '
+              'vehicle_type, vehicle_plate, company_name, job_title, '
+              'latitude, longitude, created_at, updated_at',
+            )
             .eq('id', response.user!.id)
             .single();
 
@@ -126,7 +155,10 @@ class AuthRemoteDataSource {
     try {
       final user = _client.auth.currentUser;
       if (user == null) return null;
-
+      'id, email, full_name, role_id, phone, address, is_active, '
+          'avatar_url, city, province, postal_code, driver_license, '
+          'vehicle_type, vehicle_plate, company_name, job_title, '
+          'latitude, longitude, created_at, updated_at';
       final profileData = await _client
           .from('profiles')
           .select()
